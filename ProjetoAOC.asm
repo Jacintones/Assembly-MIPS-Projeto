@@ -4,10 +4,18 @@
     la $a0, input_buffer
     li $a1, 100                # Tamanho máximo da entrada
     syscall
+    
+    # Verifica se o primeiro caractere não é apenas um ENTER
+    la $t7, input_buffer       
+    lb $t6, 0($t7)             # Lê o primeiro caractere
+    
+    beq $t6, 10, campo_obrigatorio    # 10 representa '\n' (ENTER)
 
     la $t5, input_buffer       # Move os dados para o buffer do livro ou usuário
     sw $t5, 0($t1)
 .end_macro
+
+
 
 .macro imprimir_shell
     # Imprime a emnsagem do shell
@@ -21,7 +29,7 @@
 input_buffer: .space 256
 
 # Estrutura para armazenar os livros e usuários
-biblioteca: .space 1024           
+acervo: .space 1024           
 usuarios: .space 512          
 
 # Mensagens
@@ -29,12 +37,15 @@ msg_shell: .asciiz "Diginomicon-shell>>"
 msg_titulo: .asciiz "Digite o título do livro: "
 msg_autor: .asciiz "Digite o autor do livro: "
 msg_isbn: .asciiz "Digite o ISBN do livro: "
+msg_qtd: .asciiz "Digite a quantidade de exemplares disponíveis: "
 msg_nome: .asciiz "Digite o nome do usuário: "
-msg_email: .asciiz "Digite o email do usuário: "
+msg_matricula: .asciiz "Digite o número de matrícula: "
+msg_curso: .asciiz "Digite o curso do usuário: "
 msg_cadastrado: .asciiz "Cadastro realizado com sucesso!\n"
 msg_error_armazenamento: .asciiz "Erro: espaço cheio!\n"
 msg_error: .asciiz "Comando inválido! Tente novamente.\n"
 msg_opcao: .asciiz "Escolha uma opção: (1) Ver Data e Hora, (2) Cadastrar Livro, (3) Listar Livros, (4) Cadastrar Usuário, (5) Registrar Empréstimo, (6) Gerar Relatório, (7) Remover Livro, (8) Remover Usuário, (9) Salvar Dados, (10) Ajustar Data e Hora, (11) Registrar Devolução, (12) Sair: \n"
+msg_campo_obrigatorio: .asciiz "Erro: Este campo é obrigatório!\n"
 
 # Mensagens de data e hora
 msg_data: .asciiz "Data: "
@@ -83,20 +94,21 @@ main:
     
     j main  # Volta para o menu se a opção for inválida
 
+
 # ============================== LIVROS ==============================
 cadastrar_livro:
-    # Calcular o próximo espaço disponível na biblioteca
-    la $t1, biblioteca
+    # Calcular o próximo espaço disponível na acervo
+    la $t1, acervo
     li $t2, 0  # Índice para livros
 
-    loop_biblioteca:
+    loop_acervo:
         lb $t3, 0($t1)  # Verifica se há espaço
         beqz $t3, inserir_livro  # Se espaço vazio, cadastrar
         addi $t1, $t1, 100  # Avança para o próximo espaço (tamanho fixo)
         addi $t2, $t2, 1  # Incrementa índice
         li $t4, 10  # Máximo de 10 livros
         bge $t2, $t4, espaco_cheio
-        j loop_biblioteca
+        j loop_acervo
 
 inserir_livro:
     # Salvar título
@@ -120,12 +132,21 @@ inserir_livro:
     salvar_dado
     sw $t5, 8($t1)
 
+    # Salvar quantidade de exemplares (`qtd`)
+    li $v0, 4
+    la $a0, msg_qtd
+    syscall
+    salvar_dado
+    sw $t5, 12($t1)
+
     # Mensagem de sucesso
     li $v0, 4
     la $a0, msg_cadastrado
     syscall
 
-    j main  # Retorna ao menu principal
+    j main
+
+
 
 listar_livros:
 	li $v0, 4
@@ -162,19 +183,27 @@ inserir_usuario:
     salvar_dado
     sw $t5, 0($t1)
 
-    # Salvar email
+    # Salvar matrícula
     li $v0, 4
-    la $a0, msg_email
+    la $a0, msg_matricula
     syscall
     salvar_dado
     sw $t5, 4($t1)
+
+    # Salvar curso
+    li $v0, 4
+    la $a0, msg_curso
+    syscall
+    salvar_dado
+    sw $t5, 8($t1)
 
     # Mensagem de sucesso
     li $v0, 4
     la $a0, msg_cadastrado
     syscall
 
-    j main  # Retorna ao menu principal
+    j main
+
 
 remover_usuario:
 	li $v0, 4
@@ -252,3 +281,9 @@ espaco_cheio:
 sair:
     li $v0, 10  # Finaliza o programa
     syscall
+    
+campo_obrigatorio:
+    li $v0, 4
+    la $a0, msg_campo_obrigatorio
+    syscall
+    j main
