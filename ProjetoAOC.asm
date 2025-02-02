@@ -46,6 +46,7 @@
 	msg_quebra_de_linha: .asciiz "\n"
 	
 	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, MÃªs, Dia, Hora, Minuto, Segundo
+	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
 	
 	# Mensagem temporaria de depuraÃ§Ã£o
 	msg_em_breve: .asciiz "Ainda nÃ£o implementado.\n"
@@ -267,7 +268,7 @@ registrar_devolucao:
     	
 # ============================== DATA_HORA ==============================
 data_hora:
-    li $v0, 30
+li $v0, 30
 syscall
 
 li $a2, 1000 
@@ -299,13 +300,15 @@ mflo $s0              #s0 = Hour
 
 subi $s0, $s0, 3
 
-jal tratar_horas
-
 mfhi $t1 
 li $t0, 60 
 div $t1, $t0 
 mflo $s1              #s1 = Minute
 mfhi $s2              #s2 = Second
+
+jal tratar_horas
+
+add $t3, $t3, $t1
 
 la $s3, tempo
 sw $s0, 12($s3)
@@ -354,7 +357,7 @@ loop:
 
   mfhi $t1           # t1 =  (N[i] + R * 65536) % K
 
-bne $t0, $sp, loop
+ bne $t0, $sp, loop
 
  mthi $t1
 
@@ -366,180 +369,199 @@ bne $t0, $sp, loop
 
 
 tratar_horas:
-   li $t0, 0
-   bge $s0,  $t0, horasCertas
+	# s0 = horas
+	# s1 = minutos
+	# s2 = segundos
+	li $t1, 0
+
+ajustar_horas_negativas:
+   bge $s0,  $zero, somar_offset
    addi $s0, $s0, 24
-   j tratar_horas
+
+somar_offset:
+   	la $s3, tempo_base
+	lw $t0, 20($s3)
+	add $s2, $s2, $t0
+	
+	lw $t0, 16($s3)
+	add $s1, $s1, $t0
+	
+	lw $t0, 12($s3)
+	add $s0, $s0, $t0
+	
+ajustar_segundos:
+	li $t0, 60
+	blt $s2, $t0, ajustar_minutos
+	sub $s2, $s2, $t0
+	addi $s1, $s1, 1
+	
+ajustar_minutos:
+	li $t0, 60
+	blt $s1, $t0, ajustar_horas
+	sub $s1, $s1, $t0
+	addi $s0, $s0, 1
+	
+ajustar_horas:
+	li $t0, 24
+	blt $s0, $t0, horas_certas
+	sub $s0, $s0, $t0
+	li $t1, 1
    
-horasCertas:
-   jr $ra
+horas_certas:
+	jr $ra
          
          
 #sub
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espaï¿½o na pilha
-sw $ra, 0($sp)     # Salva o endereï¿½o de retorno
+subu $sp, $sp, 4   # Reserva espaço na pilha
+sw $ra, 0($sp)     # Salva o endereço de retorno
 
-li $t0, 1 #mï¿½s
-li $t1, 1970 #ano
+la $s3, tempo_base
+lw $t0, 4($s3) #mês
+lw $t1, 0($s3) #ano
+lw $t2, 8($s3) #dias
+addu $a0, $a0, $t2 #dias_restantes
 
+li $t2, 2
+beq $t0, $t2, qual_fevereiro
+
+li $t2, 3
+beq $t0, $t2, marco
+
+li $t2, 4
+beq $t0, $t2, abril
+
+li $t2, 5
+beq $t0, $t2, maio
+
+li $t2, 6
+beq $t0, $t2, junho
+
+li $t2, 7
+beq $t0, $t2, julho
+
+li $t2, 8
+beq $t0, $t2, agosto
+
+li $t2, 9
+beq $t0, $t2, setembro
+
+li $t2, 10
+beq $t0, $t2, outubro
+
+li $t2, 11
+beq $t0, $t2, novembro
+
+li $t2, 12
+beq $t0, $t2, dezembro
+
+j loop_data
+
+qual_fevereiro:
+	andi $t2, $t1, 3  # Verifica os dois últimos bits de $t0
+	beq $t2, $zero, fevereiro_bissexto
+	j fevereiro_normal
 loop_data:
-    	andi $t2, $t1, 3  # Verifica os dois ï¿½ltimos bits de $t0
-   	beq $t2, $zero, ano_bissexto  # Se for 0, o nï¿½mero ï¿½ divisï¿½vel por 4
-
-ano_normal:
-	#janeiro
-	li $a2, 31
-	jal subtrair
+    	
+    	janeiro:
+		#janeiro
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 2
+		li $t0, 2
+		
+		j qual_fevereiro
 	
-	#fevereiro
-	li $a2, 28
-	jal subtrair
+	fevereiro_normal:
+	 	#fevereiro
+	 	li $a2, 28
+	 	jal subtrair
 	
-	li $t0, 3
+		li $t0, 3
+		
+		j marco
 	
-	#marï¿½o
-	li $a2, 31
-	jal subtrair
+	fevereiro_bissexto:
+	 	#fevereiro
+	 	li $a2, 29
+	 	jal subtrair
 	
-	li $t0, 4
+		li $t0, 3
 	
-	#abril
-	li $a2, 30
-	jal subtrair
+	marco:
+		#março
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 5
+		li $t0, 4
 	
-	#maio
-	li $a2, 31
-	jal subtrair
+	abril:
+		#abril
+		li $a2, 30
+		jal subtrair
 	
-	li $t0, 6
+		li $t0, 5
 	
-	#junho
-	li $a2, 30
-	jal subtrair
+	maio:
+		#maio
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 7
+		li $t0, 6
 	
-	#julho
-	li $a2, 31
-	jal subtrair
+	junho:
+		#junho
+		li $a2, 30
+		jal subtrair
 	
-	li $t0, 8
+		li $t0, 7
 	
-	#agosto
-	li $a2, 31
-	jal subtrair
+	julho:
+		#julho
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 9
+		li $t0, 8
 	
-	#setembo
-	li $a2, 30
-	jal subtrair
+	agosto:
+		#agosto
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 10
+		li $t0, 9
 	
-	#outubro
-	li $a2, 31
-	jal subtrair
+	setembro:
+		#setembo
+		li $a2, 30
+		jal subtrair
 	
-	li $t0, 11
+		li $t0, 10
 	
-	#novembro
-	li $a2, 30
-	jal subtrair
+	outubro:
+		#outubro
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 12
+		li $t0, 11
 	
-	#dezembro
-	li $a2, 31
-	jal subtrair
+	novembro:
+		#novembro
+		li $a2, 30
+		jal subtrair
 	
-	li $t0, 1
-	addi $t1, $t1, 1
+		li $t0, 12
 	
-	j loop_data
-ano_bissexto:
-	#janeiro
-	li $a2, 31
-	jal subtrair
+	dezembro:
+		#dezembro
+		li $a2, 31
+		jal subtrair
 	
-	li $t0, 2
+		li $t0, 1
+		addi $t1, $t1, 1
 	
-	#fevereiro
-	li $a2, 29
-	jal subtrair
-	
-	li $t0, 3
-	
-	#marï¿½o
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 4
-	
-	#abril
-	li $a2, 30
-	jal subtrair
-	
-	li $t0, 5
-	
-	#maio
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 6
-	
-	#junho
-	li $a2, 30
-	jal subtrair
-	
-	li $t0, 7
-	
-	#julho
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 8
-	
-	#agosto
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 9
-	
-	#setembo
-	li $a2, 30
-	jal subtrair
-	
-	li $t0, 10
-	
-	#outubro
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 11
-	
-	#novembro
-	li $a2, 30
-	jal subtrair
-	
-	li $t0, 12
-	
-	#dezembro
-	li $a2, 31
-	jal subtrair
-	
-	li $t0, 1
-	addi $t1, $t1, 1
-	
-	j loop_data
-	
+		j loop_data
 subtrair:
 	#a0:a1 dias | a2 = subtrator
 	bgt $a1, $zero, subtrair_com_underflow
@@ -561,13 +583,14 @@ finalizar:
 	sw $t1, 0($s3)
 	sw $t0, 4($s3)
 	sw $a0, 8($s3)
-    	lw $ra, 0($sp)     # Restaura o endereï¿½o de retorno
-    	addu $sp, $sp, 4   # Libera espaï¿½o na pilha
+    	lw $ra, 0($sp)     # Restaura o endereço de retorno
+    	addu $sp, $sp, 4   # Libera espaço na pilha
     	jr $ra             # Retorna para quem chamou   
-    		
+                  
+#dataHora   
 imprimir_data_hora:
 	
-	la $t0, tempo    # Carrega o endereï¿½o base de 'tempo'
+	la $t0, tempo    # Carrega o endereÃ§o base de 'tempo'
 	
 	# Mostra a data
 	li $v0, 4
