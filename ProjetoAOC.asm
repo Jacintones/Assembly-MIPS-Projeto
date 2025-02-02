@@ -15,17 +15,6 @@
     sw $t5, 0($t1)
 .end_macro
 
-.macro ler_string
-    li $v0, 8                  # Lê a entrada do usuário
-    la $a0, input_buffer
-    li $a1, 100                # Tamanho máximo da entrada
-    syscall
-
-    la $t7, input_buffer       
-    lb $t6, 0($t7)
-    beq $t6, 10, campo_obrigatorio
-    la $t5, input_buffer       # Coloca o endereço do buffer em $t5
-.end_macro
 
 
 .macro imprimir_shell
@@ -57,10 +46,6 @@ msg_error_armazenamento: .asciiz "Erro: espaço cheio!\n"
 msg_error: .asciiz "Comando inválido! Tente novamente.\n"
 msg_opcao: .asciiz "Escolha uma opção: (1) Ver Data e Hora, (2) Cadastrar Livro, (3) Listar Livros, (4) Cadastrar Usuário, (5) Registrar Empréstimo, (6) Gerar Relatório, (7) Remover Livro, (8) Remover Usuário, (9) Salvar Dados, (10) Ajustar Data e Hora, (11) Registrar Devolução, (12) Sair: \n"
 msg_campo_obrigatorio: .asciiz "Erro: Este campo é obrigatório!\n"
-msg_isbn_emprestimo: .asciiz "Digite o isbn do livro: "
-msg_livro_nao_encontrado: .asciiz "Livro não encontrado!"
-msg_emprestimo_realizado: .asciiz "Empréstimo realizado com sucesso!"
-msg_sem_exemplares: .asciiz "Livro sem exemplares!"
 
 # Mensagens de data e hora
 msg_data: .asciiz "Data: "
@@ -68,6 +53,8 @@ msg_hora: .asciiz "Hora: "
 msg_barra: .asciiz "/"
 msg_dois_pontos: .asciiz ":"
 msg_quebra_de_linha: .asciiz "\n"
+
+tempo: .word 0, 0, 0, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
 
 # Mensagem temporaria de depuração
 msg_em_breve: .asciiz "Ainda não implementado.\n"
@@ -99,7 +86,7 @@ main:
     beq $t0, 8, remover_usuario  # Opção 8: Remover Usuário
     beq $t0, 9, salvar_dados  # Opção 9: Salvar Dados
     beq $t0, 10, ajustar_data  # Opção 10: Ajustar Data e Hora
-    #beq $t0, 11, registrar_devolucao  # Opção 11: Registrar Devolução
+    beq $t0, 11, registrar_devolucao  # Opção 11: Registrar Devolução
     beq $t0, 12, sair  # Opção 12: Sair    
     
     # Mensagem de opção invalida
@@ -114,7 +101,7 @@ main:
 cadastrar_livro:
     # Calcular o próximo espaço disponível na acervo
     la $t1, acervo
-    li $t2, 0  # Índice para livros
+    li $t2, 0  # �?ndice para livros
 
     loop_acervo:
         lb $t3, 0($t1)  # Verifica se há espaço
@@ -175,11 +162,11 @@ remover_livro:
     	syscall
     	j main
 
-# ============================== USUÁRIOS ==============================
+# ============================== USU�?RIOS ==============================
 cadastrar_usuario:
     # Calcular o próximo espaço disponível em usuários
     la $t1, usuarios
-    li $t2, 0  # Índice para usuários
+    li $t2, 0  # �?ndice para usuários
 
     loop_usuarios:
         lb $t3, 0($t1)  # Verifica se há espaço
@@ -227,100 +214,382 @@ remover_usuario:
     	j main
 # ============================== EMPRESTIMO E DEVOLUÇÃO ==============================
 registrar_emprestimo:
-    # Exibe mensagem solicitando o ISBN para empréstimo
-    li $v0, 4
-    la $a0, msg_isbn_emprestimo
-    syscall
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
 
-    # Lê o ISBN digitado pelo usuário usando a macro ler_string.
-    # O endereço da string digitada será colocado em $t5.
-    ler_string
-    addu $a2, $t5, $zero       # $a2 <- ISBN digitado pelo usuário
-
-    # Inicializa ponteiro para o acervo e índice do livro
-    la $t1, acervo            # $t1 aponta para o início do acervo
-    li $t2, 0                 # Índice do livro (0 até 9)
-
-busca_emprestimo:
-    li $t8, 10                # Número máximo de livros = 10
-    bge $t2, $t8, livro_nao_encontrado
-
-    # Carrega o endereço do ISBN armazenado para o livro atual.
-    # Supondo que no cadastro do livro, o ISBN foi armazenado no offset 8.
-    lw $t4, 8($t1)            # $t4 <- ISBN armazenado no livro atual
-
-    # Se o campo ISBN estiver vazio (zero), pula para o próximo registro.
-    beqz $t4, proximo_livro
-
-    # Compara o ISBN armazenado (em $t4) com o digitado (em $a2).
-    addu $a0, $t4, $zero      # $a0 <- endereço do ISBN armazenado
-    addu $a1, $a2, $zero      # $a1 <- endereço do ISBN digitado
-    jal string_compare        # Retorna 0 em $v0 se forem iguais
-
-    beq $v0, $zero, livro_encontrado  # Se iguais, encontrou o livro
-
-proximo_livro:
-    addi $t1, $t1, 100        # Avança para o próximo livro (100 bytes por livro)
-    addi $t2, $t2, 1          # Incrementa índice
-    j busca_emprestimo
-
-livro_nao_encontrado:
-    li $v0, 4
-    la $a0, msg_livro_nao_encontrado
-    syscall
-    j main
-
-livro_encontrado:
-    # Verifica se há exemplares disponíveis
-    # Supondo que a quantidade esteja armazenada no offset 12 do registro.
-    lw $t7, 12($t1)           # $t7 <- quantidade disponível
-    blez $t7, livro_sem_exemplares
-
-    # Decrementa a quantidade disponível e atualiza o acervo
-    addi $t7, $t7, -1
-    sw $t7, 12($t1)
-
-    # Exibe mensagem de empréstimo realizado com sucesso
-    li $v0, 4
-    la $a0, msg_emprestimo_realizado
-    syscall
-    j main
-
-livro_sem_exemplares:
-    li $v0, 4
-    la $a0, msg_sem_exemplares
-    syscall
-    j main
+registrar_devolucao:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
     	
 # ============================== DATA_HORA ==============================
 data_hora:
-	# Chama o serviço 30 para obter a data e a hora atual
-	li $v0, 30   # Chama o serviço 30 para obter data e hora
-	syscall
-    	
-    	move $t2, $a0  # Ano
-	move $t3, $a1  # Mês
-	move $t4, $a2  # Dia
-	move $t5, $a3  # Hora
-	move $t6, $t0  # Minuto
-	move $t7, $t1  # Segundo
+    li $v0, 30
+syscall
+
+li $a2, 1000 
+jal div64x16  
+
+#a0:a1 = seconds since epoch
+
+li $a2, 43200
+jal div64x16
+
+#a0:a1 = half-days since epoch
+#hi = seconds in half-day
+
+mfhi $s0              #Seconds in the half-day
+
+move $t3, $a0 # menos significante
+move $t4, $a1 # mais significante
+
+andi $a0, $t3, 1      #a0 = 1 if odd half-day number (otherwise 0)
+ror $a0, $a0, 1       #a0 < 0 if odd half-day number (otherwise 0)
+sra $a0, $a0, 31      #a0 = 0xffffffff if odd half-day number (otherwise 0)
+andi $a0, $a0, 43200  #a0 = 43200  if odd half-day number (otherwise 0)
+
+add $s0, $s0, $a0     #s0 = seconds in the day
+
+li $t0, 3600
+div $s0, $t0         
+mflo $s0              #s0 = Hour
+
+subi $s0, $s0, 3
+
+jal tratar_horas
+
+mfhi $t1 
+li $t0, 60 
+div $t1, $t0 
+mflo $s1              #s1 = Minute
+mfhi $s2              #s2 = Second
+
+la $s3, tempo
+sw $s0, 12($s3)
+sw $s1, 16($s3)
+sw $s2, 20($s3)
+
+move $a0, $t3 # menos significante
+move $a1, $t4 # mais significante
+
+li $a2, 2
+jal div64x16
+
+move $s6, $a0
+move $s7, $a1
+
+jal pegar_data
+
+#Print the time
+jal imprimir_data_hora
+
+j main
+
+
+div64x16:
+ subu $sp, $sp, 16
+
+ sw $a0, ($sp)
+ sw $a1, 4($sp)
+
+ add $t0, $sp, 8     # Pointer to digits (N)
+ add $t3, $sp, 16    # Pointer to result (M)
+ xor $t1, $t1, $t1   # Remainder
+
+loop: 
+  subu $t3, $t3, 2
+  subu $t0, $t0, 2
+
+  sll $t1, $t1, 16   # t1 = R * 65536
+  lhu $t2, ($t0)     # t2 = N[i]
+  addu $t2, $t2, $t1 # t2 = N[i] + R * 65536
+
+  div $t2, $a2
+
+  mflo $t1           # t1 = (N[i] + R * 65536) / K
+  sh $t1, ($t3)      # M[i] = (N[i] + R * 65536) / K
+
+  mfhi $t1           # t1 =  (N[i] + R * 65536) % K
+
+bne $t0, $sp, loop
+
+ mthi $t1
+
+ lw $a0, 8($sp) 
+ lw $a1, 12($sp)
+
+ addu $sp, $sp, 16
+ jr $ra 
+
+
+tratar_horas:
+   li $t0, 0
+   bge $s0,  $t0, horasCertas
+   addi $s0, $s0, 24
+   j tratar_horas
+   
+horasCertas:
+   jr $ra
+         
+         
+#sub
+
+pegar_data:
+
+subu $sp, $sp, 4   # Reserva espa�o na pilha
+sw $ra, 0($sp)     # Salva o endere�o de retorno
+
+li $t0, 1 #m�s
+li $t1, 1970 #ano
+
+loop_data:
+    	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
+   	beq $t2, $zero, ano_bissexto  # Se for 0, o n�mero � divis�vel por 4
+
+ano_normal:
+	#janeiro
+	li $a2, 31
+	jal subtrair
 	
-	li $v0, 4   # Chama o serviço 30 para obter data e hora
-	la $a0, msg_quebra_de_linha
-	syscall
+	li $t0, 2
 	
+	#fevereiro
+	li $a2, 28
+	jal subtrair
+	
+	li $t0, 3
+	
+	#mar�o
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 4
+	
+	#abril
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 5
+	
+	#maio
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 6
+	
+	#junho
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 7
+	
+	#julho
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 8
+	
+	#agosto
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 9
+	
+	#setembo
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 10
+	
+	#outubro
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 11
+	
+	#novembro
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 12
+	
+	#dezembro
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 1
+	addi $t1, $t1, 1
+	
+	j loop_data
+ano_bissexto:
+	#janeiro
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 2
+	
+	#fevereiro
+	li $a2, 29
+	jal subtrair
+	
+	li $t0, 3
+	
+	#mar�o
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 4
+	
+	#abril
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 5
+	
+	#maio
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 6
+	
+	#junho
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 7
+	
+	#julho
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 8
+	
+	#agosto
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 9
+	
+	#setembo
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 10
+	
+	#outubro
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 11
+	
+	#novembro
+	li $a2, 30
+	jal subtrair
+	
+	li $t0, 12
+	
+	#dezembro
+	li $a2, 31
+	jal subtrair
+	
+	li $t0, 1
+	addi $t1, $t1, 1
+	
+	j loop_data
+	
+subtrair:
+	#a0:a1 dias | a2 = subtrator
+	bgt $a1, $zero, subtrair_com_underflow
+	j subtrair_sem_underflow
+
+subtrair_com_underflow:
+	sub $a0, $a0, $a2
+	blt $a0, $zero, ajuste
+	jr $ra
+subtrair_sem_underflow:
+	blt $a0, $a2, finalizar
+	sub $a0, $a0, $a2
+	jr $ra
+ajuste:
+	sub $s0, $s0, 1
+	jr $ra
+finalizar:
+	la $s3, tempo
+	sw $t1, 0($s3)
+	sw $t0, 4($s3)
+	sw $a0, 8($s3)
+    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
+    	addu $sp, $sp, 4   # Libera espa�o na pilha
+    	jr $ra             # Retorna para quem chamou   
+    		
+imprimir_data_hora:
+	
+	la $t0, tempo    # Carrega o endere�o base de 'tempo'
+	
+	# Mostra a data
+	li $v0, 4
 	la $a0, msg_data
 	syscall
 	
-	li $v0, 1
-	move $a0, $t3
+	lw $a0, 8($t0)  # Carrega o ano
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_barra
 	syscall
+	
+	lw $a0, 4($t0)  # Carrega o mês
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_barra
+	syscall
+	
+	lw $a0, 0($t0)  # Carrega o dia
+    	li $v0, 1
+    	syscall
+	
+    	li $v0, 4
+	la $a0, msg_quebra_de_linha
+	syscall
+	
+	# Mostra as horas
+	
+	li $v0, 4
+	la $a0, msg_hora
+	syscall
+	
+	lw $a0, 12($t0)  # Carrega a hora
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_dois_pontos
+	syscall
+	
+	lw $a0, 16($t0)  # Carrega o minuto
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_dois_pontos
+	syscall
+	
+	lw $a0, 20($t0)  # Carrega o segundo
+    	li $v0, 1
+    	syscall
     	
-    	li $v0, 4   # Chama o serviço 30 para obter data e hora
+    	li $v0, 4
 	la $a0, msg_quebra_de_linha
 	syscall
     	
-    	j main
+    	jr $ra
+	
 ajustar_data:
 	li $v0, 4
     	la $a0, msg_em_breve
@@ -328,26 +597,6 @@ ajustar_data:
     	j main
 
 # ============================== DADOS ==============================
-# string_compare:
-#   Compara byte a byte as strings apontadas por $a0 e $a1.
-#   Retorna $v0 = 0 se forem iguais.
-string_compare:
-    lb $t0, 0($a0)       # Carrega caractere da primeira string
-    lb $t1, 0($a1)       # Carrega caractere da segunda string
-    bne $t0, $t1, not_equal
-    beqz $t0, equal      # Se $t0 == 0, chegou ao fim e são iguais
-    addi $a0, $a0, 1
-    addi $a1, $a1, 1
-    j string_compare
-not_equal:
-    # Retorna um valor diferente de zero (pode ser a diferença dos caracteres)
-    sub $v0, $t0, $t1
-    jr $ra
-equal:
-    li $v0, 0
-    jr $ra
-
-
 gerar_relatorio:
 	li $v0, 4
     	la $a0, msg_em_breve
@@ -360,7 +609,7 @@ salvar_dados:
     	syscall
     	j main
 
-# ============================== ERRO E SAÍDA ==============================
+# ============================== ERRO E SA�?DA ==============================
 espaco_cheio:
     li $v0, 4
     la $a0, msg_error_armazenamento
