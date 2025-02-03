@@ -1,0 +1,1214 @@
+#################### DOCUMENTACAO ####################
+# reg $s0 -> Endereco para o acervo de livros
+# reg $s1 -> Endereco para a lista com os usuarios
+# reg $s2 -> Endereco para a lista de emprestimos
+######################################################
+
+.data
+	#Enderecos dos arquivos
+	#************************** MODIFICAR DIRETORIO DAS PASTAS *********************************
+	endereco_acervo_livros:  .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
+	endereco_contas_usuarios: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\usuarios.txt"
+	endereco_emprestimos: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\emprestimos.txt"
+	
+	#Endereco do conteudo salvo na memoria (Definindo o tamanho MAX dos arquivos: 10Kb, aproximadamente 100 livros)
+	conteudo_acervo_livro: .space 10240
+	conteudo_contas_usuarios: .space 10240
+	conteudo_emprestimos: .space 10240
+
+	# Buffer para entrada de dados
+	input_buffer: .space 256
+
+	# Estrutura para armazenar os livros e usuﾃ｡rios
+	acervo: .space 1024           
+	usuarios: .space 512          
+
+	# Mensagens
+	msg_shell: .asciiz "Diginomicon-shell>>"
+	msg_titulo: .asciiz "Digite o tﾃｭtulo: "
+	msg_autor: .asciiz "Digite o autor: "
+	msg_isbn: .asciiz "Digite o ISBN: "
+	msg_qtd: .asciiz "Digite a quantidade: "
+
+	msg_nome: .asciiz "Digite o nome do usuﾃ｡rio: "
+	msg_matricula: .asciiz "Digite o nﾃｺmero de matrﾃｭcula: "
+	msg_curso: .asciiz "Digite o curso do usuﾃ｡rio: "
+	msg_cadastrado: .asciiz "Cadastro realizado com sucesso!\n"
+	msg_error_armazenamento: .asciiz "Erro: espaﾃｧo cheio!\n"
+	msg_error: .asciiz "Comando invﾃ｡lido! Tente novamente.\n"
+	msg_opcao: .asciiz "Escolha uma opﾃｧﾃ｣o: (1) Ver Data e Hora, (2) Cadastrar Livro, (3) Listar Livros, (4) Cadastrar Usuﾃ｡rio, (5) Registrar Emprﾃｩstimo, (6) Gerar Relatﾃｳrio, (7) Remover Livro, (8) Remover Usuﾃ｡rio, (9) Salvar Dados, (10) Ajustar Data e Hora, (11) Registrar Devoluﾃｧﾃ｣o, (12) Sair: \n"
+	msg_campo_obrigatorio: .asciiz "Erro: Este campo ﾃｩ obrigatﾃｳrio!\n"
+	nome_arquivo: .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
+	msg_newline: .asciiz "\n"  # Nova linha
+	msg_linha:   .asciiz "---------------------\n"  # Linha separadora entre livros
+	msg_titulo_txt: .asciiz "Titulo: "
+	msg_autor_txt:  .asciiz "Autor: "
+	msg_isbn_txt:   .asciiz "ISBN: "
+	msg_qtd_txt:    .asciiz "Quantidade: "
+	msg_erro: .asciiz "Erro ao criar arquivo!\n"
+	msg_ponto_virgula: .asciiz ";"
+        buffer: .space 256
+	# Mensagens de data e hora
+	msg_data: .asciiz "Data: "
+	msg_hora: .asciiz "Hora: "
+	msg_barra: .asciiz "/"
+	msg_dois_pontos: .asciiz ":"
+	msg_quebra_de_linha: .asciiz "\n"
+	error_msg: .asciiz "Error: Could not create or open the file.\n"
+        newline: .asciiz "\n"
+	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, Mﾃｪs, Dia, Hora, Minuto, Segundo
+	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, M�ｽs, Dia, Hora, Minuto, Segundo
+	milisegundos_offset: 0, 0
+	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, M黌, Dia, Hora, Minuto, Segundo
+	msg_dia: .asciiz "Dia: "
+	msg_mes: .asciiz "M黌: "
+	msg_ano: .asciiz "Ano: "
+	msg_minuto: .asciiz "Minuto: "
+	msg_segundo: .asciiz "Segundo: "
+	
+	
+	msg_comando: .asciiz "Comando: "
+	
+	#Comandos
+	cmd_cadastrar_livro: 	.asciiz "cadastrar_livro"
+	cmd_cadastrar_usuario:  .asciiz "cadastrar_usuario"
+	cmd_listar_livro: 		.asciiz "listar_livro"
+	cmd_reg_emprestimo:     .asciiz "registrar_emprestimo"
+	cmd_gerar_relatorio:    .asciiz "gerar_relatorio"
+	cmd_remover_livro:      .asciiz "remover_livro"
+	cmd_remover_usuario: 	.asciiz "remover_usuario"
+	cmd_salvar_dados: 	    .asciiz "salvar_dados"
+	cmd_formatar_dados: 	.asciiz "formatar_dados"
+	cmd_data_hora: 			.asciiz "data_hora"
+	cmd_ajustar_data: 	    .asciiz "ajustar_data"
+	cmd_reg_devolucao:      .asciiz "registrar_devolucao"
+	cmd_listar_usuarios:    .asciiz "listar_usuarios"
+	
+	#Parametros
+	arg_titulo:      	.asciiz "--titulo"
+	arg_autor:      	.asciiz "--autor"
+	arg_ISBN:        	.asciiz "--isbn"
+	arg_quantidade: 	.asciiz "--qtd"
+	arg_nome:			.asciiz "--nome"
+	arg_matricula:  	.asciiz "--matricula"
+	arg_curso:			.asciiz "--curso"
+	arg_devolucao: 		.asciiz "--devolucao"
+	arg_data:           .asciiz "--data"
+	arg_hora:           .asciiz "--hora"
+	
+	#Mensagens de erro
+	msg_comando_invalido: .asciiz "Comando invalido!"
+	msg_faltam_parametros_data_hora: .asciiz "O comando data_hora deve receber os parametros --data DD/MM/AA --hora HH/MM/SS"
+	
+	#buffers:
+	buffer_cmd: .space 100
+	
+	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
+
+	# Mensagem temporaria de depuraﾃｧﾃ｣o
+	msg_em_breve: .asciiz "Ainda nﾃ｣o implementado.\n"
+	
+#Fecha um arquivo aberto
+.macro fechar_arquivo
+	addi $v0, $zero 16 #Codigo para fechar o arquivo com o descritor
+	move $a0, $t0 #Copia o descritor para reg a0
+	syscall #Fecha o arquivo
+.end_macro
+	
+#Abrer arquivo no modo de leitura
+.macro ler_arquivo
+	addi $v0, $zero, 13 #Codigo para abrir arquivos
+	addi $a1, $zero, 0 #Define a flag como 0, modo de leitura
+	syscall #Descritor do arquivo vai para o reg v0 (Descritor -> ﾃｩ o registrador que vai possuir a referﾃｪncia do arquivo)
+	
+	move $t0, $v0 #Copia o descritor para o reg s0
+	
+	addi $v0, $zero, 14 #carrega o cod de leitura de arquivo
+	move $a0, $t0 #copia o descritor para o reg a0
+	la $a1, ($t1) #Buffer do armazenamento do conteudo
+	addi $a2, $zero 10240 #Tamanho do arquivo
+	syscall #Chama a leitura de arquivo
+.end_macro
+	
+.macro salvar_dado
+    imprimir_shell
+    li $v0, 8                  # Lﾃｪ a entrada do usuﾃ｡rio
+    la $a0, input_buffer
+    li $a1, 100                # Tamanho mﾃ｡ximo da entrada
+    syscall
+    
+    # Verifica se o primeiro caractere nﾃ｣o ﾃｩ apenas um ENTER
+    la $t7, input_buffer       
+    lb $t6, 0($t7)             # Lﾃｪ o primeiro caractere
+    
+    beq $t6, 10, campo_obrigatorio    # 10 representa '\n' (ENTER)
+
+    la $t5, input_buffer       # Endereﾃｧo da entrada do usuﾃ｡rio
+    
+    # Garantir alinhamento de $t1 para mﾃｺltiplos de 4
+    andi $t2, $t1, 3           
+    beqz $t2, salvar_dado_ok  
+
+    addi $t1, $t1, 4
+    andi $t1, $t1, 0xFFFFFFFC  # Ajusta para o prﾃｳximo mﾃｺltiplo de 4
+
+salvar_dado_ok:
+    sw $t5, 0($t1)  # Agora armazenando corretamente o ponteiro para a string
+    
+.end_macro
+
+
+
+
+.macro imprimir_shell
+    # Imprime a emnsagem do shell
+    li $v0, 4
+    la $a0, msg_shell
+    syscall
+.end_macro
+
+.text
+
+.globl main
+
+main:
+	la $s1, buffer_cmd
+	jal limpar_buffer
+
+    # Imprime o menu inicial
+    li $v0, 4
+    la $a0, msg_comando
+    syscall
+
+    imprimir_shell
+
+    # Lﾃｪ a opﾃｧﾃ｣o do usuﾃ｡rio
+    li $v0, 8
+    la $a0, buffer_cmd
+    li $a1, 100
+    syscall 
+    
+    jal verificar_data_hora
+    jal verificar_ajustar_data_hora
+    
+    # Mensagem de opﾃｧﾃ｣o invalida
+    li $v0, 4
+    la $a0, msg_comando_invalido
+    syscall
+    
+    j main  # Volta para o menu se a opﾃｧﾃ｣o for invﾃ｡lida
+
+
+#=========================verificar_Comandos===========================
+verificar_cadastro_livro:
+verificar_cadastro_usuario:
+verificar_remover_livro:
+verificar_listar_livros:
+verificar_data_hora:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+	
+	la $a0, buffer_cmd
+	la $a1, cmd_data_hora
+	li $a2, 9 
+	jal strcmp
+	
+	beq $v0, 0, print_data_hora
+	
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
+verificar_ajustar_data_hora:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+
+	la $a0, buffer_cmd
+	la $a1, cmd_ajustar_data
+	li $a2, 12
+	jal strcmp
+	
+	beq $v0, 0, verificar_parametro_data
+
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
+
+#=========================verificar_parametros===========================
+verificar_parametro_data:
+	addi $a0, $a0, 1 #Pula o espaco
+	la $a1, arg_data
+	li $a2, 6
+	jal strcmp
+	
+	bne $v0, 0, faltam_parametros_data_hora
+	
+	#Extrair data
+	#verificar data
+	j verificar_parametro_hora
+	
+verificar_parametro_hora:
+	addi $a0, $a0, 1 #Pula o espaco
+	la $a1, arg_hora
+	li $a2, 6
+	jal strcmp
+	
+	bne $v0, 0, faltam_parametros_data_hora
+	
+	#Extrair horas
+	#verificar horas
+	j main
+
+#===============================ERROS_DE_COMANDOS=====================
+faltam_parametros_data_hora:
+	li $v0, 4
+	la $a0, msg_faltam_parametros_data_hora
+	syscall
+	j main
+# ============================== LIVROS ==============================
+inserir_livro:
+    # Encontrar posiﾃｧﾃ｣o vazia no acervo
+    la $t1, acervo  # Inﾃｭcio do acervo
+    li $t2, 0       # Contador de livros
+
+loop_acervo:
+    lb $t3, 0($t1)  # Verifica se o primeiro byte ﾃｩ 0 (espaﾃｧo vazio)
+    beqz $t3, inserir_dados  # Se for 0, encontrou espaﾃｧo livre
+
+    addi $t1, $t1, 152  # Avanﾃｧa para o prﾃｳximo livro
+    addi $t2, $t2, 1    # Incrementa contador de livros
+    
+    li $t4, 10          # Mﾃ｡ximo de 10 livros
+    blt $t2, $t4, loop_acervo
+    j espaco_cheio      # Se chegou no limite, sai
+
+inserir_dados:
+    # Ler e armazenar Tﾃｭtulo (offset 0)
+    li $v0, 4
+    la $a0, msg_titulo
+    syscall
+    li $v0, 8            # Syscall para ler string
+    la $a0, input_buffer # Buffer de entrada
+    li $a1, 64           # Tamanho mﾃ｡ximo
+    syscall
+    la $t6, input_buffer
+    move $t7, $t1        # Destino correto no acervo
+    jal copiar_string
+
+    # DEBUG: Imprimir Tﾃｭtulo Armazenado
+    li $v0, 4
+    move $a0, $t1
+    syscall
+
+    # Ler e armazenar Autor (offset 64)
+    li $v0, 4
+    la $a0, msg_autor
+    syscall
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 64
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 64   # Offset do autor
+    jal copiar_string
+
+    # DEBUG: Imprimir Autor Armazenado
+    li $v0, 4
+    move $a0, $t7
+    syscall
+
+    # Ler e armazenar ISBN (offset 128)
+    li $v0, 4
+    la $a0, msg_isbn
+    syscall
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 16
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 128  # Offset do ISBN
+    jal copiar_string
+
+    # DEBUG: Imprimir ISBN Armazenado
+    li $v0, 4
+    move $a0, $t7
+    syscall
+
+    # Ler e armazenar Quantidade (offset 144) como STRING
+    li $v0, 4
+    la $a0, msg_qtd
+    syscall
+
+    li $v0, 8            # Syscall para ler string
+    la $a0, input_buffer # Buffer de entrada
+    li $a1, 16           # Tamanho mﾃ｡ximo 16 bytes
+    syscall
+
+    la $t6, input_buffer
+    addi $t7, $t1, 144   # Endereﾃｧo correto da quantidade no acervo
+    jal copiar_string    # Copia a string da quantidade para o acervo
+    # Mensagem de sucesso
+    li $v0, 4
+    la $a0, msg_cadastrado
+    syscall
+ 
+    jal salvar_acervo_em_arquivo  # Salva no arquivo
+    j main
+
+listar_livros:
+# Abrir o arquivo  
+    li $v0, 13           # syscall para abrir arquivo  
+    la $a0, endereco_acervo_livros     # nome do arquivo  
+    li $a1, 0            # modo leitura  
+    syscall  
+    
+    # Verifica se o arquivo foi aberto corretamente
+    bltz $v0, error_open_file # Se $v0 for negativo, erro ao abrir
+    
+    # Salvar o descritor de arquivo  
+    move $t0, $v0        # $t0 agora contﾃｩm o descritor do arquivo  
+    
+read_loop:  
+    # Ler o arquivo  
+    li $v0, 14           # syscall para ler o arquivo  
+    move $a0, $t0        # descritor do arquivo  
+    la $a1, buffer       # buffer para armazenar dados  
+    li $a2, 256          # nﾃｺmero de bytes a ler  
+    syscall  
+    
+    # Checar se chegou ao final do arquivo  
+    beqz $v0, close_file # se nada for lido, fecha o arquivo  
+    
+    # Salvar quantidade de bytes lidos
+    move $t1, $v0  
+    
+    # Imprimir o conteﾃｺdo lido
+    li $v0, 4            # syscall para imprimir string  
+    la $a0, buffer       # endereﾃｧo do buffer  
+    syscall  
+
+    j read_loop          # loop novamente para ler mais dados  
+
+close_file:  
+    # Fechar o arquivo  
+    li $v0, 16           # syscall para fechar o arquivo  
+    move $a0, $t0        # descritor do arquivo  
+    syscall  
+
+error_open_file:
+    li $v0, 4
+    la $a0, newline
+    syscall # Exibe uma quebra de linha indicando erro
+
+listar_fim:
+    j main  # Retorna ao menu principal
+    	
+    	
+remover_livro:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+
+truncate_livros:
+    # Abrir arquivo para escrita
+    li $v0, 13
+    la $a0, nome_arquivo
+    li $a1, 1  # Modo de escrita (O_WRONLY)
+    syscall
+
+    bltz $v0, erro_arquivo  # Se falhar, sai
+
+    fechar_arquivo
+	
+
+# ============================== USU�ｽ?RIOS ==============================
+cadastrar_usuario:
+    # Calcular o prﾃｳximo espaﾃｧo disponﾃｭvel em usuﾃ｡rios
+    la $t1, usuarios
+    li $t2, 0  # �ｽ?ndice para usuﾃ｡rios
+
+    loop_usuarios:
+        lb $t3, 0($t1)  # Verifica se hﾃ｡ espaﾃｧo
+        beqz $t3, inserir_usuario  # Se espaﾃｧo vazio, cadastrar
+        addi $t1, $t1, 50  # Avanﾃｧa para o prﾃｳximo espaﾃｧo (tamanho fixo)
+        addi $t2, $t2, 1  # Incrementa ﾃｭndice
+        li $t4, 5  # Mﾃ｡ximo de 5 usuﾃ｡rios
+        bge $t2, $t4, espaco_cheio
+        j loop_usuarios
+
+inserir_usuario:
+    # Salvar nome
+    li $v0, 4
+    la $a0, msg_nome
+    syscall
+    salvar_dado
+    sw $t5, 0($t1)
+
+    # Salvar matrﾃｭcula
+    li $v0, 4
+    la $a0, msg_matricula
+    syscall
+    salvar_dado
+    sw $t5, 4($t1)
+
+    # Salvar curso
+    li $v0, 4
+    la $a0, msg_curso
+    syscall
+    salvar_dado
+    sw $t5, 8($t1)
+
+    # Mensagem de sucesso
+    li $v0, 4
+    la $a0, msg_cadastrado
+    syscall
+
+    j main
+
+
+remover_usuario:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+# ============================== EMPRESTIMO E DEVOLUﾃ�グ ==============================
+registrar_emprestimo:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+
+registrar_devolucao:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+    	
+# ============================== DATA_HORA ==============================
+print_data_hora:
+	jal data_hora
+	j imprimir_data_hora
+
+data_hora:
+
+subu $sp, $sp, 4   # Reserva espa輟 na pilha
+sw $ra, 0($sp)     # Salva o endere輟 de retorno
+
+li $v0, 30
+syscall
+
+la $t0, milisegundos_offset
+lw $a2, 4($t0) #parte baixa
+lw $t2, 0($t0) #parte alta
+
+bgtu $a0, $a2, sem_underflow
+subi $a1, $a1, 1
+sem_underflow:
+sub $a0, $a0, $a2
+sub $a1, $a1, $t2
+
+li $a2, 1000 
+jal div64x16  
+
+#a0:a1 = seconds since epoch
+
+li $a2, 43200
+jal div64x16
+
+#a0:a1 = half-days since epoch
+#hi = seconds in half-day
+
+mfhi $s0              #Seconds in the half-day
+
+move $t3, $a0 # menos significante
+move $t4, $a1 # mais significante
+
+andi $a0, $t3, 1      #a0 = 1 if odd half-day number (otherwise 0)
+ror $a0, $a0, 1       #a0 < 0 if odd half-day number (otherwise 0)
+sra $a0, $a0, 31      #a0 = 0xffffffff if odd half-day number (otherwise 0)
+andi $a0, $a0, 43200  #a0 = 43200  if odd half-day number (otherwise 0)
+
+add $s0, $s0, $a0     #s0 = seconds in the day
+
+li $t0, 3600
+div $s0, $t0         
+mflo $s0              #s0 = Hour
+
+subi $s0, $s0, 3
+
+mfhi $t1 
+li $t0, 60 
+div $t1, $t0 
+mflo $s1              #s1 = Minute
+mfhi $s2              #s2 = Second
+
+jal tratar_horas
+
+add $t3, $t3, $t1
+
+la $s3, tempo
+sw $s0, 12($s3)
+sw $s1, 16($s3)
+sw $s2, 20($s3)
+
+move $a0, $t3 # menos significante
+move $a1, $t4 # mais significante
+
+li $a2, 2
+jal div64x16
+
+move $s6, $a0
+move $s7, $a1
+
+jal pegar_data
+
+lw $ra, 0($sp)     # Restaura o endere輟 de retorno
+addu $sp, $sp, 4   # Libera espa輟 na pilha
+jr $ra             # Retorna para quem chamou
+
+
+div64x16:
+ subu $sp, $sp, 16
+
+ sw $a0, ($sp)
+ sw $a1, 4($sp)
+
+ add $t0, $sp, 8     # Pointer to digits (N)
+ add $t3, $sp, 16    # Pointer to result (M)
+ xor $t1, $t1, $t1   # Remainder
+
+loop: 
+  subu $t3, $t3, 2
+  subu $t0, $t0, 2
+
+  sll $t1, $t1, 16   # t1 = R * 65536
+  lhu $t2, ($t0)     # t2 = N[i]
+  addu $t2, $t2, $t1 # t2 = N[i] + R * 65536
+
+  div $t2, $a2
+
+  mflo $t1           # t1 = (N[i] + R * 65536) / K
+  sh $t1, ($t3)      # M[i] = (N[i] + R * 65536) / K
+
+  mfhi $t1           # t1 =  (N[i] + R * 65536) % K
+
+ bne $t0, $sp, loop
+
+ mthi $t1
+
+ lw $a0, 8($sp) 
+ lw $a1, 12($sp)
+
+ addu $sp, $sp, 16
+ jr $ra 
+
+
+tratar_horas:
+	# s0 = horas
+	# s1 = minutos
+	# s2 = segundos
+	li $t1, 0
+
+ajustar_horas_negativas:
+   	bge $s0,  $zero, somar_offset
+   	addi $s0, $s0, 24
+
+somar_offset:
+   	la $s3, tempo_base
+	lw $t0, 20($s3)
+	add $s2, $s2, $t0
+	
+	lw $t0, 16($s3)
+	add $s1, $s1, $t0
+	
+	lw $t0, 12($s3)
+	add $s0, $s0, $t0
+	
+ajustar_segundos:
+	li $t0, 60
+	blt $s2, $t0, ajustar_minutos
+	sub $s2, $s2, $t0
+	addi $s1, $s1, 1
+	
+ajustar_minutos:
+	li $t0, 60
+	blt $s1, $t0, ajustar_horas
+	sub $s1, $s1, $t0
+	addi $s0, $s0, 1
+	
+ajustar_horas:
+	li $t0, 24
+	blt $s0, $t0, horas_certas
+	sub $s0, $s0, $t0
+	li $t1, 1
+   
+horas_certas:
+	jr $ra
+         
+         
+#sub
+
+pegar_data:
+
+subu $sp, $sp, 4   # Reserva espa輟 na pilha
+sw $ra, 0($sp)     # Salva o endere輟 de retorno
+
+la $s3, tempo_base
+lw $t0, 4($s3) #m黌
+lw $t1, 0($s3) #ano
+lw $t2, 8($s3) #dias
+addu $a0, $a0, $t2 #dias_restantes
+
+li $t2, 2
+beq $t0, $t2, qual_fevereiro
+
+li $t2, 3
+beq $t0, $t2, marco
+
+li $t2, 4
+beq $t0, $t2, abril
+
+li $t2, 5
+beq $t0, $t2, maio
+
+li $t2, 6
+beq $t0, $t2, junho
+
+li $t2, 7
+beq $t0, $t2, julho
+
+li $t2, 8
+beq $t0, $t2, agosto
+
+li $t2, 9
+beq $t0, $t2, setembro
+
+li $t2, 10
+beq $t0, $t2, outubro
+
+li $t2, 11
+beq $t0, $t2, novembro
+
+li $t2, 12
+beq $t0, $t2, dezembro
+
+j loop_data
+
+qual_fevereiro:
+	andi $t2, $t1, 3  # Verifica os dois 伃timos bits de $t0
+	beq $t2, $zero, fevereiro_bissexto
+	j fevereiro_normal
+loop_data:
+    	
+    	janeiro:
+		#janeiro
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 2
+		
+		j qual_fevereiro
+	
+	fevereiro_normal:
+	 	#fevereiro
+	 	li $a2, 28
+	 	jal subtrair
+	
+		li $t0, 3
+		
+		j marco
+	
+	fevereiro_bissexto:
+	 	#fevereiro
+	 	li $a2, 29
+	 	jal subtrair
+	
+		li $t0, 3
+	
+	marco:
+		#mar輟
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 4
+	
+	abril:
+		#abril
+		li $a2, 30
+		jal subtrair
+	
+		li $t0, 5
+	
+	maio:
+		#maio
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 6
+	
+	junho:
+		#junho
+		li $a2, 30
+		jal subtrair
+	
+		li $t0, 7
+	
+	julho:
+		#julho
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 8
+	
+	agosto:
+		#agosto
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 9
+	
+	setembro:
+		#setembo
+		li $a2, 30
+		jal subtrair
+	
+		li $t0, 10
+	
+	outubro:
+		#outubro
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 11
+	
+	novembro:
+		#novembro
+		li $a2, 30
+		jal subtrair
+	
+		li $t0, 12
+	
+	dezembro:
+		#dezembro
+		li $a2, 31
+		jal subtrair
+	
+		li $t0, 1
+		addi $t1, $t1, 1
+	
+		j loop_data
+subtrair:
+	#a0:a1 dias | a2 = subtrator
+	bgt $a1, $zero, subtrair_com_underflow
+	j subtrair_sem_underflow
+
+subtrair_com_underflow:
+	sub $a0, $a0, $a2
+	blt $a0, $zero, ajuste
+	jr $ra
+subtrair_sem_underflow:
+	blt $a0, $a2, finalizar
+	sub $a0, $a0, $a2
+	jr $ra
+ajuste:
+	sub $s0, $s0, 1
+	jr $ra
+finalizar:
+	la $s3, tempo
+	sw $t1, 0($s3)
+	sw $t0, 4($s3)
+	sw $a0, 8($s3)
+    	lw $ra, 0($sp)     # Restaura o endere輟 de retorno
+    	addu $sp, $sp, 4   # Libera espa輟 na pilha
+    	jr $ra             # Retorna para quem chamou   
+                  
+#dataHora   
+imprimir_data_hora:
+	
+	la $t0, tempo    # Carrega o endereﾃｧo base de 'tempo'
+	
+	# Mostra a data
+	li $v0, 4
+	la $a0, msg_data
+	syscall
+	
+	lw $a0, 8($t0)  # Carrega o ano
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_barra
+	syscall
+	
+	lw $a0, 4($t0)  # Carrega o mﾃｪs
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_barra
+	syscall
+	
+	lw $a0, 0($t0)  # Carrega o dia
+    	li $v0, 1
+    	syscall
+	
+    	li $v0, 4
+	la $a0, msg_quebra_de_linha
+	syscall
+	
+	# Mostra as horas
+	
+	li $v0, 4
+	la $a0, msg_hora
+	syscall
+	
+	lw $a0, 12($t0)  # Carrega a hora
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_dois_pontos
+	syscall
+	
+	lw $a0, 16($t0)  # Carrega o minuto
+    	li $v0, 1
+    	syscall
+	
+	li $v0, 4
+	la $a0, msg_dois_pontos
+	syscall
+	
+	lw $a0, 20($t0)  # Carrega o segundo
+    	li $v0, 1
+    	syscall
+    	
+    	li $v0, 4
+	la $a0, msg_quebra_de_linha
+	syscall
+    	
+    	j main
+	
+ajustar_data:
+	la $t0, tempo_base    # Carrega o endereﾃｧo base de 'tempo'
+
+	dia:
+	li $v0, 4
+	la $a0, msg_dia
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 8($t0)
+	
+	mes:
+	li $v0, 4
+	la $a0, msg_mes
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 4($t0)
+	
+	ano:
+	li $v0, 4
+	la $a0, msg_ano
+	syscall
+	
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 0($t0)
+	
+	horas:
+	li $v0, 4
+	la $a0, msg_hora
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	addi $v0, $v0, 3
+	li $t1, 24
+	div $v0, $t1
+	mfhi $v0
+	sw $v0, 12($t0)
+	
+	minutos:
+	li $v0, 4
+	la $a0, msg_minuto
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 16($t0)
+	
+	segundos:
+	li $v0, 4
+	la $a0, msg_segundo
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 20($t0)
+	
+	li $v0, 30
+	syscall
+	
+	la $t0, milisegundos_offset
+	sw $a0, 4($t0)
+	sw $a1, 0($t0)
+	
+	j main
+
+# ============================== DADOS ==============================
+gerar_relatorio:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+    	
+salvar_dados:
+	li $v0, 4
+    	la $a0, msg_em_breve
+    	syscall
+    	j main
+
+############## MANIPULACAO DOS ARQUIVOS ##############
+
+################### ARQUIVOS ACERVO ##################
+ler_arquivo_livros:
+	la $a0, endereco_acervo_livros #Carrega o endereﾃｧo do arquivo no reg a0
+	la $t1, conteudo_acervo_livro
+	ler_arquivo #Abre o arquivo que estﾃ｡ no endereco a0
+	move $s0, $a1 #Salva o endereco de memoria com os conteudos do arquivo
+	#Fechando o arquivo
+	fechar_arquivo
+
+
+################## ARQUIVOS USUARIOS #################
+ler_arquivo_usuarios:
+	#Abrindo arquivo no modo de leitura
+	la $a0, endereco_contas_usuarios #Carrega o endereﾃｧo do arquivo no reg a0
+	la $t1, conteudo_contas_usuarios
+	ler_arquivo #Abre o arquivo que estﾃ｡ no endereco a0
+	move $s1, $a1 #Salva o endereco de memoria com os conteudos do arquivo
+	#Fechando o arquivo
+	fechar_arquivo
+
+
+################ ARQUIVOS EMPRESTIMOS ################
+ler_arquivo_emprestimos:
+	#Abrindo arquivo no modo de leitura
+	la $a0, endereco_emprestimos #Carrega o endereﾃｧo do arquivo no reg a0
+	la $t1, conteudo_emprestimos
+	ler_arquivo #Abre o arquivo que estﾃ｡ no endereco a0
+	move $s2, $a1 #Salva o endereco de memoria com os conteudos do arquivo
+	#Fechando o arquivo
+	fechar_arquivo
+
+
+copiar_string:
+    li $t9, 64  # Define um limite mﾃ｡ximo de 64 bytes (pode ser ajustado)
+    
+loop_copia:
+    beqz $t9, fim_copia  # Se exceder o limite, termina a cﾃｳpia
+    lb $t8, 0($t6)       # Lﾃｪ um byte da string fonte
+    sb $t8, 0($t7)       # Escreve no destino
+    beqz $t8, fim_copia  # Se for o terminador NULL, termina
+    addi $t6, $t6, 1     # Avanﾃｧa na string fonte
+    addi $t7, $t7, 1     # Avanﾃｧa na string destino
+    subi $t9, $t9, 1     # Decrementa contador de bytes restantes
+    j loop_copia
+
+fim_copia:
+    sb $zero, 0($t7)  # Garante que a string estﾃ｡ NULL-terminated
+    jr $ra
+
+erro_arquivo:
+    # Exibe mensagem de erro e encerra
+    li $v0, 4
+    la $a0, msg_erro
+    syscall
+    j main                # Volta ao menu principal
+
+salvar_acervo_em_arquivo:
+    # Abrir arquivo para escrita
+    li $v0, 13
+    la $a0, nome_arquivo
+    li $a1, 1  # Modo de escrita (O_WRONLY)
+    syscall
+
+    bltz $v0, erro_arquivo  # Se falhar, sai
+
+    move $t0, $v0  # Salva o descritor do arquivo
+
+    la $t1, acervo  # Inﾃｭcio do acervo
+    li $t2, 0  # Contador de livros
+
+loop_salvar:
+    lb $t3, 0($t1)  # Verifica se hﾃ｡ livro cadastrado
+    beqz $t3, fim_salvar  # Se nﾃ｣o hﾃ｡ mais livros, sai do loop
+
+    ####### Escrever Tﾃｭtulo #######
+    move $a1, $t1   # Ponteiro para tﾃｭtulo
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t1
+    move $a2, $v0  # Usa o tamanho real da string
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever Autor #######
+    addi $t4, $t1, 64  # Ponteiro para autor
+    move $a1, $t4
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t4
+    move $a2, $v0  # Usa o tamanho real da string
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever ISBN #######
+    addi $t5, $t1, 128  # Ponteiro para ISBN
+    move $a1, $t5
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t5
+    move $a2, $v0  # Usa o tamanho real da string
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever Quantidade #######
+    addi $t6, $t1, 144  # Ponteiro para quantidade
+    move $a1, $t6
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t6
+    move $a2, $v0  # Usa o tamanho real da string
+    syscall
+
+    # Escrever nova linha "\n" para finalizar o registro
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_newline
+    li $a2, 1
+    syscall
+
+    # Avanﾃｧar para o prﾃｳximo livro
+    addi $t1, $t1, 152  # Avanﾃｧa para o prﾃｳximo livro
+    addi $t2, $t2, 1
+    li $t4, 10
+    blt $t2, $t4, loop_salvar  # Continua enquanto nﾃ｣o atingir 10 livros
+
+fim_salvar:
+    # Fechar arquivo
+    li $v0, 16
+    move $a0, $t0
+    syscall
+    jr $ra
+
+
+calcular_tamanho_string:
+    li $v0, 0        # Inicializa contador de caracteres
+    move $t8, $a1    # Ponteiro para string
+
+loop_tamanho:
+    lb $t9, 0($t8)   # Lﾃｪ um byte da string
+    beqz $t9, fim_tamanho  # Se for NULL ('\0'), termina
+    addi $t8, $t8, 1  # Avanﾃｧa para o prﾃｳximo caractere
+    addi $v0, $v0, 1  # Incrementa contador de tamanho
+    j loop_tamanho
+
+fim_tamanho:
+    jr $ra
+
+# ============================== ERRO E SA�ｽ?DA ==============================
+espaco_cheio:
+    li $v0, 4
+    la $a0, msg_error_armazenamento
+    syscall
+    j main  # Retorna ao menu principal
+
+sair:
+    li $v0, 10  # Finaliza o programa
+    syscall
+    
+campo_obrigatorio:
+    li $v0, 4
+    la $a0, msg_campo_obrigatorio
+    syscall
+    j main
+    
+    
+#=============================UTILIDADES===================================
+# Função strcmp
+	strcmp:
+		# Loop para comparar os caracteres
+	strcmp_loop:
+		beqz $a2, strings_iguais # Verifica se atingiu o número de iterações
+		subi $a2, $a2, 1          # Subtrai em 1 a quantidade de loops restantes
+    		lb $t0, 0($a0)          # Carrega o próximo caractere de str1 em $t0
+    		lb $t1, 0($a1)          # Carrega o próximo caractere de str2 em $t1
+
+    		beq $t0, $t1, verificar_null # Se forem iguais, verifica o próximo caractere
+    		blt $t0, $t1, str1_menor     # Se for menor, retorna -1
+    		j str1_maior
+
+	verificar_null:
+    		beqz $t0, strings_iguais  # Se $t0 for '\0', as strings são iguais
+    		addi $a0, $a0, 1         # Incrementa o ponteiro de str1
+    		addi $a1, $a1, 1         # Incrementa o ponteiro de str2
+    		j strcmp_loop            # Continua o loop
+
+	strings_iguais:
+    		li $v0, 0                # Ambas as strings são iguais (retorna 0)
+    		jr $ra                   # Retorna ao chamador
+    	str1_menor:
+    		li $v0, -1
+    		jr $ra 
+    	str1_maior:
+    		li $v0, 1
+    		jr $ra
+    		
+    		
+limpar_buffer:
+    # $s1: Aponta para o inicio do buffer a ser limpo
+
+    li $t0, 0            # Carrega 0 em $t0 (valor para limpar)
+    
+	loop_limpar:
+    	lb $t1, 0($s1)             # Carrega o byte atual do buffer
+    	beq $t1, $zero, finalizar_limpeza  # Se encontrar NULL (\0), fim da string
+    	sb $t0, 0($s1)             # Substitui o byte por 0
+    	addi $s1, $s1, 1           # Avanca o ponteiro de $s0
+    	j loop_limpar               # Continua limpando
+
+	finalizar_limpeza:
+    	jr $ra               # Retorna
