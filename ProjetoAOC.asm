@@ -7,9 +7,9 @@
 .data
 	#Enderecos dos arquivos
 	#************************** MODIFICAR DIRETORIO DAS PASTAS *********************************
-	endereco_acervo_livros: .asciiz "D:/Faculdade/Quarto Periodo/Arquitetura/Testes/livros.txt"
-	endereco_contas_usuarios: .asciiz "D:/Faculdade/Quarto Periodo/Arquitetura/Testes/usuarios.txt"
-	endereco_emprestimos: .asciiz "D:/Faculdade/Quarto Periodo/Arquitetura/Testes/emprestimos.txt"
+	endereco_acervo_livros:  .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
+	endereco_contas_usuarios: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\usuarios.txt"
+	endereco_emprestimos: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\emprestimos.txt"
 	
 	#Endereco do conteudo salvo na memoria (Definindo o tamanho MAX dos arquivos: 10Kb, aproximadamente 100 livros)
 	conteudo_acervo_livro: .space 10240
@@ -25,10 +25,11 @@
 
 	# Mensagens
 	msg_shell: .asciiz "Diginomicon-shell>>"
-	msg_titulo: .asciiz "Digite o título do livro: "
-	msg_autor: .asciiz "Digite o autor do livro: "
-	msg_isbn: .asciiz "Digite o ISBN do livro: "
-	msg_qtd: .asciiz "Digite a quantidade de exemplares disponíveis: "
+	msg_titulo: .asciiz "Digite o título: "
+	msg_autor: .asciiz "Digite o autor: "
+	msg_isbn: .asciiz "Digite o ISBN: "
+	msg_qtd: .asciiz "Digite a quantidade: "
+
 	msg_nome: .asciiz "Digite o nome do usuário: "
 	msg_matricula: .asciiz "Digite o número de matrícula: "
 	msg_curso: .asciiz "Digite o curso do usuário: "
@@ -37,6 +38,14 @@
 	msg_error: .asciiz "Comando inválido! Tente novamente.\n"
 	msg_opcao: .asciiz "Escolha uma opção: (1) Ver Data e Hora, (2) Cadastrar Livro, (3) Listar Livros, (4) Cadastrar Usuário, (5) Registrar Empréstimo, (6) Gerar Relatório, (7) Remover Livro, (8) Remover Usuário, (9) Salvar Dados, (10) Ajustar Data e Hora, (11) Registrar Devolução, (12) Sair: \n"
 	msg_campo_obrigatorio: .asciiz "Erro: Este campo é obrigatório!\n"
+	nome_arquivo: .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
+	msg_newline: .asciiz "\n"  # Nova linha
+	msg_linha:   .asciiz "---------------------\n"  # Linha separadora entre livros
+	msg_titulo_txt: .asciiz "Titulo: "
+	msg_autor_txt:  .asciiz "Autor: "
+	msg_isbn_txt:   .asciiz "ISBN: "
+	msg_qtd_txt:    .asciiz "Quantidade: "
+	msg_erro: .asciiz "Erro ao criar arquivo!\n"
 
 	# Mensagens de data e hora
 	msg_data: .asciiz "Data: "
@@ -44,10 +53,12 @@
 	msg_barra: .asciiz "/"
 	msg_dois_pontos: .asciiz ":"
 	msg_quebra_de_linha: .asciiz "\n"
-	
+	error_msg: .asciiz "Error: Could not create or open the file.\n"
+
 	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
-	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
-	
+	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
+	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
+
 	# Mensagem temporaria de depuração
 	msg_em_breve: .asciiz "Ainda não implementado.\n"
 	
@@ -86,9 +97,20 @@
     
     beq $t6, 10, campo_obrigatorio    # 10 representa '\n' (ENTER)
 
-    la $t5, input_buffer       # Move os dados para o buffer do livro ou usuário
-    sw $t5, 0($t1)
+    la $t5, input_buffer       # Endereço da entrada do usuário
+    
+    # Garantir alinhamento de $t1 para múltiplos de 4
+    andi $t2, $t1, 3           
+    beqz $t2, salvar_dado_ok  
+
+    addi $t1, $t1, 4
+    andi $t1, $t1, 0xFFFFFFFC  # Ajusta para o próximo múltiplo de 4
+
+salvar_dado_ok:
+    sw $t5, 0($t1)  # Agora armazenando corretamente o ponteiro para a string
+    
 .end_macro
+
 
 
 
@@ -118,7 +140,7 @@ main:
 
     # Verifica a opção do usuário
     beq $t0, 1, data_hora  # Opção 1: Ver Data e Hora
-    beq $t0, 2, cadastrar_livro  # Opção 2: Cadastrar Livro
+    beq $t0, 2, inserir_livro  # Opção 2: Cadastrar Livro
     beq $t0, 3, listar_livros  # Opção 3: Listar Livros
     beq $t0, 4, cadastrar_usuario  # Opção 4: Cadastrar Usuário
     beq $t0, 5, registrar_emprestimo  # Opção 5: Registrar Empréstimo
@@ -139,54 +161,93 @@ main:
 
 
 # ============================== LIVROS ==============================
-cadastrar_livro:
-    # Calcular o próximo espaço disponível na acervo
-    la $t1, acervo
-    li $t2, 0  # �?ndice para livros
-
-    loop_acervo:
-        lb $t3, 0($t1)  # Verifica se há espaço
-        beqz $t3, inserir_livro  # Se espaço vazio, cadastrar
-        addi $t1, $t1, 100  # Avança para o próximo espaço (tamanho fixo)
-        addi $t2, $t2, 1  # Incrementa índice
-        li $t4, 10  # Máximo de 10 livros
-        bge $t2, $t4, espaco_cheio
-        j loop_acervo
-
 inserir_livro:
-    # Salvar título
+    # Encontrar posição vazia no acervo
+    la $t1, acervo  # Início do acervo
+    li $t2, 0       # Contador de livros
+
+loop_acervo:
+    lb $t3, 0($t1)  # Verifica se o primeiro byte é 0 (espaço vazio)
+    beqz $t3, inserir_dados  # Se for 0, encontrou espaço livre
+
+    addi $t1, $t1, 152  # Avança para o próximo livro
+    addi $t2, $t2, 1    # Incrementa contador de livros
+    
+    li $t4, 10          # Máximo de 10 livros
+    blt $t2, $t4, loop_acervo
+    j espaco_cheio      # Se chegou no limite, sai
+
+inserir_dados:
+    # Ler e armazenar Título (offset 0)
     li $v0, 4
     la $a0, msg_titulo
     syscall
-    salvar_dado
-    sw $t5, 0($t1)  
+    li $v0, 8            # Syscall para ler string
+    la $a0, input_buffer # Buffer de entrada
+    li $a1, 64           # Tamanho máximo
+    syscall
+    la $t6, input_buffer
+    move $t7, $t1        # Destino correto no acervo
+    jal copiar_string
 
-    # Salvar autor
+    # DEBUG: Imprimir Título Armazenado
+    li $v0, 4
+    move $a0, $t1
+    syscall
+
+    # Ler e armazenar Autor (offset 64)
     li $v0, 4
     la $a0, msg_autor
     syscall
-    salvar_dado
-    sw $t5, 4($t1)
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 64
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 64   # Offset do autor
+    jal copiar_string
 
-    # Salvar ISBN
+    # DEBUG: Imprimir Autor Armazenado
+    li $v0, 4
+    move $a0, $t7
+    syscall
+
+    # Ler e armazenar ISBN (offset 128)
     li $v0, 4
     la $a0, msg_isbn
     syscall
-    salvar_dado
-    sw $t5, 8($t1)
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 16
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 128  # Offset do ISBN
+    jal copiar_string
 
-    # Salvar quantidade de exemplares (`qtd`)
+    # DEBUG: Imprimir ISBN Armazenado
+    li $v0, 4
+    move $a0, $t7
+    syscall
+
+    # Ler e armazenar Quantidade (offset 144) como STRING
     li $v0, 4
     la $a0, msg_qtd
     syscall
-    salvar_dado
-    sw $t5, 12($t1)
 
+    li $v0, 8            # Syscall para ler string
+    la $a0, input_buffer # Buffer de entrada
+    li $a1, 16           # Tamanho máximo 16 bytes
+    syscall
+
+    la $t6, input_buffer
+    addi $t7, $t1, 144   # Endereço correto da quantidade no acervo
+    jal copiar_string    # Copia a string da quantidade para o acervo
     # Mensagem de sucesso
     li $v0, 4
     la $a0, msg_cadastrado
     syscall
-
+ 
+    jal salvar_acervo_em_arquivo  # Salva no arquivo
     j main
 
 
@@ -415,11 +476,11 @@ horas_certas:
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espa�o na pilha
-sw $ra, 0($sp)     # Salva o endere�o de retorno
+subu $sp, $sp, 4   # Reserva espa�o na pilha
+sw $ra, 0($sp)     # Salva o endere�o de retorno
 
 la $s3, tempo_base
-lw $t0, 4($s3) #m�s
+lw $t0, 4($s3) #m�s
 lw $t1, 0($s3) #ano
 lw $t2, 8($s3) #dias
 addu $a0, $a0, $t2 #dias_restantes
@@ -460,7 +521,7 @@ beq $t0, $t2, dezembro
 j loop_data
 
 qual_fevereiro:
-	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
+	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
 	beq $t2, $zero, fevereiro_bissexto
 	j fevereiro_normal
 loop_data:
@@ -491,7 +552,7 @@ loop_data:
 		li $t0, 3
 	
 	marco:
-		#mar�o
+		#mar�o
 		li $a2, 31
 		jal subtrair
 	
@@ -583,8 +644,8 @@ finalizar:
 	sw $t1, 0($s3)
 	sw $t0, 4($s3)
 	sw $a0, 8($s3)
-    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
-    	addu $sp, $sp, 4   # Libera espa�o na pilha
+    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
+    	addu $sp, $sp, 4   # Libera espa�o na pilha
     	jr $ra             # Retorna para quem chamou   
                   
 #dataHora   
@@ -704,6 +765,152 @@ ler_arquivo_emprestimos:
 	move $s2, $a1 #Salva o endereco de memoria com os conteudos do arquivo
 	#Fechando o arquivo
 	fechar_arquivo
+
+
+copiar_string:
+    loop_copia:
+        lb $t8, 0($t6)   # Lê um byte da string fonte
+        sb $t8, 0($t7)   # Escreve no destino
+        beqz $t8, fim_copia # Se for o terminador NULL, termina
+        addi $t6, $t6, 1  # Avança na string fonte
+        addi $t7, $t7, 1  # Avança na string destino
+        j loop_copia
+    fim_copia:
+    jr $ra
+
+
+erro_arquivo:
+    # Exibe mensagem de erro e encerra
+    li $v0, 4
+    la $a0, msg_erro
+    syscall
+    j main                # Volta ao menu principal
+
+salvar_acervo_em_arquivo:
+    # Abrir arquivo para escrita
+    li $v0, 13
+    la $a0, nome_arquivo
+    li $a1, 1  # Modo de escrita
+    syscall
+
+    bltz $v0, erro_arquivo  # Se falhar, sai
+
+    move $t0, $v0  # Salva o descritor do arquivo
+
+    la $t1, acervo  # Início do acervo
+    li $t2, 0  # Contador de livros
+
+loop_salvar:
+    lb $t3, 0($t1)  # Verifica se há livro cadastrado
+    beqz $t3, fim_salvar  # Se não há mais livros, sai do loop
+
+    # Escrever "Título: "
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_titulo_txt
+    li $a2, 8
+    syscall
+
+    # Escrever título (64 bytes)
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t1
+    li $a2, 64
+    syscall
+
+    # Nova linha após título
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_newline
+    li $a2, 1
+    syscall
+
+    # Escrever "Autor: "
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_autor_txt
+    li $a2, 7
+    syscall
+
+    # Escrever autor (64 bytes)
+    addi $t4, $t1, 64
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t4
+    li $a2, 64
+    syscall
+
+    # Nova linha após autor
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_newline
+    li $a2, 1
+    syscall
+
+    # Escrever "ISBN: "
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_isbn_txt
+    li $a2, 6
+    syscall
+
+    # Escrever ISBN (16 bytes)
+    addi $t5, $t1, 128
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t5
+    li $a2, 16
+    syscall
+
+    # Nova linha após ISBN
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_newline
+    li $a2, 1
+    syscall
+
+    # Escrever "Quantidade: "
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_qtd_txt
+    li $a2, 11
+    syscall
+
+    # Escrever quantidade (16 bytes)
+    addi $t6, $t1, 144   # Pega o endereço da quantidade no acervo
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t6
+    li $a2, 16
+    syscall
+
+    # Nova linha após quantidade
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_newline
+    li $a2, 1
+    syscall
+
+    # Escrever linha separadora
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_linha
+    li $a2, 21
+    syscall
+
+    # Avançar para o próximo livro
+    addi $t1, $t1, 152  # Avança para o próximo livro
+    addi $t2, $t2, 1
+    li $t4, 10
+    blt $t2, $t4, loop_salvar  # Continua enquanto não atingir 10 livros
+
+fim_salvar:
+    # Fechar arquivo
+    li $v0, 16
+    move $a0, $t0
+    syscall
+    jr $ra
+
 
 # ============================== ERRO E SA�?DA ==============================
 espaco_cheio:

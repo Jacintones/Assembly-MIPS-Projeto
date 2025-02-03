@@ -1,0 +1,19 @@
+Titulo: harry potter
+                                                   
+Autor: jk rolling
+                                                     
+ISBN: 2323
+           
+Quantidade:432
+
+   
+---------------------
+Titulo: duna
+                                                           
+Autor: frank
+                                                          
+ISBN: 323
+            
+Quantidade:423
+            
+---------------------
