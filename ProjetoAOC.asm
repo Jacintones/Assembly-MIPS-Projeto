@@ -58,6 +58,16 @@
         newline: .asciiz "\n"
 	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, MÃªs, Dia, Hora, Minuto, Segundo
 	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, Mï¿½s, Dia, Hora, Minuto, Segundo
+	milisegundos_offset: 0, 0
+	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
+	msg_dia: .asciiz "Dia: "
+	msg_mes: .asciiz "Mês: "
+	msg_ano: .asciiz "Ano: "
+	msg_minuto: .asciiz "Minuto: "
+	msg_segundo: .asciiz "Segundo: "
+	
+	
+	
 	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
 
 	# Mensagem temporaria de depuraÃ§Ã£o
@@ -140,7 +150,7 @@ main:
     move $t0, $v0  # Guarda a opÃ§Ã£o em $t0
 
     # Verifica a opÃ§Ã£o do usuÃ¡rio
-    beq $t0, 1, data_hora  # OpÃ§Ã£o 1: Ver Data e Hora
+    beq $t0, 1, print_data_hora  # OpÃ§Ã£o 1: Ver Data e Hora
     beq $t0, 2, inserir_livro  # OpÃ§Ã£o 2: Cadastrar Livro
     beq $t0, 3, listar_livros  # OpÃ§Ã£o 3: Listar Livros
     beq $t0, 4, cadastrar_usuario  # OpÃ§Ã£o 4: Cadastrar UsuÃ¡rio
@@ -383,9 +393,27 @@ registrar_devolucao:
     	j main
     	
 # ============================== DATA_HORA ==============================
+print_data_hora:
+	jal data_hora
+	j imprimir_data_hora
+
 data_hora:
+
+subu $sp, $sp, 4   # Reserva espaço na pilha
+sw $ra, 0($sp)     # Salva o endereço de retorno
+
 li $v0, 30
 syscall
+
+la $t0, milisegundos_offset
+lw $a2, 4($t0) #parte baixa
+lw $t2, 0($t0) #parte alta
+
+bgtu $a0, $a2, sem_underflow
+subi $a1, $a1, 1
+sem_underflow:
+sub $a0, $a0, $a2
+sub $a1, $a1, $t2
 
 li $a2, 1000 
 jal div64x16  
@@ -442,10 +470,9 @@ move $s7, $a1
 
 jal pegar_data
 
-#Print the time
-jal imprimir_data_hora
-
-j main
+lw $ra, 0($sp)     # Restaura o endereço de retorno
+addu $sp, $sp, 4   # Libera espaço na pilha
+jr $ra             # Retorna para quem chamou
 
 
 div64x16:
@@ -491,8 +518,8 @@ tratar_horas:
 	li $t1, 0
 
 ajustar_horas_negativas:
-   bge $s0,  $zero, somar_offset
-   addi $s0, $s0, 24
+   	bge $s0,  $zero, somar_offset
+   	addi $s0, $s0, 24
 
 somar_offset:
    	la $s3, tempo_base
@@ -531,11 +558,11 @@ horas_certas:
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espaï¿½o na pilha
-sw $ra, 0($sp)     # Salva o endereï¿½o de retorno
+subu $sp, $sp, 4   # Reserva espaço na pilha
+sw $ra, 0($sp)     # Salva o endereço de retorno
 
 la $s3, tempo_base
-lw $t0, 4($s3) #mï¿½s
+lw $t0, 4($s3) #mês
 lw $t1, 0($s3) #ano
 lw $t2, 8($s3) #dias
 addu $a0, $a0, $t2 #dias_restantes
@@ -576,7 +603,7 @@ beq $t0, $t2, dezembro
 j loop_data
 
 qual_fevereiro:
-	andi $t2, $t1, 3  # Verifica os dois ï¿½ltimos bits de $t0
+	andi $t2, $t1, 3  # Verifica os dois últimos bits de $t0
 	beq $t2, $zero, fevereiro_bissexto
 	j fevereiro_normal
 loop_data:
@@ -607,7 +634,7 @@ loop_data:
 		li $t0, 3
 	
 	marco:
-		#marï¿½o
+		#março
 		li $a2, 31
 		jal subtrair
 	
@@ -699,8 +726,8 @@ finalizar:
 	sw $t1, 0($s3)
 	sw $t0, 4($s3)
 	sw $a0, 8($s3)
-    	lw $ra, 0($sp)     # Restaura o endereï¿½o de retorno
-    	addu $sp, $sp, 4   # Libera espaï¿½o na pilha
+    	lw $ra, 0($sp)     # Restaura o endereço de retorno
+    	addu $sp, $sp, 4   # Libera espaço na pilha
     	jr $ra             # Retorna para quem chamou   
                   
 #dataHora   
@@ -767,13 +794,84 @@ imprimir_data_hora:
 	la $a0, msg_quebra_de_linha
 	syscall
     	
-    	jr $ra
+    	j main
 	
 ajustar_data:
+	la $t0, tempo_base    # Carrega o endereÃ§o base de 'tempo'
+
+	dia:
 	li $v0, 4
-    	la $a0, msg_em_breve
-    	syscall
-    	j main
+	la $a0, msg_dia
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 8($t0)
+	
+	mes:
+	li $v0, 4
+	la $a0, msg_mes
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 4($t0)
+	
+	ano:
+	li $v0, 4
+	la $a0, msg_ano
+	syscall
+	
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 0($t0)
+	
+	horas:
+	li $v0, 4
+	la $a0, msg_hora
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	addi $v0, $v0, 3
+	li $t1, 24
+	div $v0, $t1
+	mfhi $v0
+	sw $v0, 12($t0)
+	
+	minutos:
+	li $v0, 4
+	la $a0, msg_minuto
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 16($t0)
+	
+	segundos:
+	li $v0, 4
+	la $a0, msg_segundo
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	sw $v0, 20($t0)
+	
+	li $v0, 30
+	syscall
+	
+	la $t0, milisegundos_offset
+	sw $a0, 4($t0)
+	sw $a1, 0($t0)
+	
+	j main
 
 # ============================== DADOS ==============================
 gerar_relatorio:
