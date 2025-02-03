@@ -201,8 +201,61 @@ main:
 
 #=========================verificar_Comandos===========================
 verificar_cadastro_livro:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+	
+	la $a0, buffer_cmd
+	la $a1, cmd_cadastrar_livro
+	li $a2, 15 
+	jal strcmp
+	
+	beq $v0, 0, #pular para onde
+	
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
 verificar_cadastro_usuario:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+	
+	la $a0, buffer_cmd
+	la $a1, cmd_cadastrar_usuario
+	li $a2, 17
+	jal strcmp
+	
+	beq $v0, 0, #pular para onde
+	
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
 verificar_remover_livro:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+	
+	la $a0, buffer_cmd
+	la $a1, cmd_remover_livro
+	li $a2, 13
+	jal strcmp
+	
+	beq $v0, 0, #pular para onde
+	
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
+verificar_remover_usuario:
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
+	
+	la $a0, buffer_cmd
+	la $a1, cmd_remover_usuario
+	li $a2, 15
+	jal strcmp
+	
+	beq $v0, 0, #pular para onde
+	
+	lw $ra, 0($sp)     # Carregar o endereco de retorno
+	addu $sp, $sp, 4   # Retorna espaco na pilha
+	jr $ra
 verificar_listar_livros:
 verificar_data_hora:
 	subu $sp, $sp, 4   # Reserva espaco na pilha
