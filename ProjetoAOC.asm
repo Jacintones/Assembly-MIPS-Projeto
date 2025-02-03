@@ -10,6 +10,11 @@
 	endereco_acervo_livros:  .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
 	endereco_contas_usuarios: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\usuarios.txt"
 	endereco_emprestimos: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\emprestimos.txt"
+	endereco_acervo_livros: .asciiz "D:/Projetos_code/Projeto-Arquitetura-Biblioteca/Assembly-MIPS-Projeto/livros.txt"
+	endereco_contas_usuarios: .asciiz "D:/Faculdade/Quarto Periodo/Arquitetura/Testes/usuarios.txt"
+	endereco_emprestimos: .asciiz "D:/Faculdade/Quarto Periodo/Arquitetura/Testes/emprestimos.txt"
+	buffer: .space 256  # espaço para armazenar os dados lidos  
+    	newline: .asciiz "\n"  # Para formatar a saída
 	
 	#Endereco do conteudo salvo na memoria (Definindo o tamanho MAX dos arquivos: 10Kb, aproximadamente 100 livros)
 	conteudo_acervo_livro: .space 10240
@@ -46,6 +51,7 @@
 	msg_isbn_txt:   .asciiz "ISBN: "
 	msg_qtd_txt:    .asciiz "Quantidade: "
 	msg_erro: .asciiz "Erro ao criar arquivo!\n"
+	msg_debug_leitura_ok: .asciiz "ok"
 
 	# Mensagens de data e hora
 	msg_data: .asciiz "Data: "
@@ -59,8 +65,17 @@
 	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
 	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
 
+
+	# Mensagens para listar livros
+	msg_lista_livros: .asciiz "\nLista de Livros Cadastrados:\n"
+	msg_acervo_vazio: .asciiz "O acervo está vazio.\n"
+
+	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
+	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
+	
 	# Mensagem temporaria de depuração
 	msg_em_breve: .asciiz "Ainda não implementado.\n"
+
 	
 #Fecha um arquivo aberto
 .macro fechar_arquivo
@@ -71,19 +86,34 @@
 	
 #Abrer arquivo no modo de leitura
 .macro ler_arquivo
-	addi $v0, $zero, 13 #Codigo para abrir arquivos
-	addi $a1, $zero, 0 #Define a flag como 0, modo de leitura
-	syscall #Descritor do arquivo vai para o reg v0 (Descritor -> é o registrador que vai possuir a referência do arquivo)
-	
-	move $t0, $v0 #Copia o descritor para o reg s0
-	
-	addi $v0, $zero, 14 #carrega o cod de leitura de arquivo
-	move $a0, $t0 #copia o descritor para o reg a0
-	la $a1, ($t1) #Buffer do armazenamento do conteudo
-	addi $a2, $zero 10240 #Tamanho do arquivo
-	syscall #Chama a leitura de arquivo
+    li $v0, 13  # Syscall para abrir arquivo
+    la $a0, endereco_acervo_livros  # Caminho do arquivo
+    li $a1, 0  # Modo de leitura
+    syscall
+
+    move $t0, $v0  # Salvar o descritor do arquivo
+    bltz $t0, erro_leitura  # Se negativo, erro ao abrir
+
+    li $v0, 14  # Syscall para ler arquivo
+    move $a0, $t0  # Descritor do arquivo
+    la $a1, conteudo_acervo_livro  # Buffer para leitura
+    li $a2, 10240  # Tamanho máximo de leitura
+    syscall
+
+    # Fechar o arquivo
+    li $v0, 16
+    move $a0, $t0
+    syscall
+
+    jr $ra  # Retorna para a chamada
+
+erro_leitura:
+    li $v0, 4
+    la $a0, msg_error
+    syscall
+    j main
 .end_macro
-	
+#================================	
 .macro salvar_dado
     imprimir_shell
     li $v0, 8                  # Lê a entrada do usuário
@@ -114,6 +144,7 @@ salvar_dado_ok:
 
 
 
+#================================
 .macro imprimir_shell
     # Imprime a emnsagem do shell
     li $v0, 4
@@ -249,14 +280,78 @@ inserir_dados:
  
     jal salvar_acervo_em_arquivo  # Salva no arquivo
     j main
+#======================================================
+verificar_acervo:
+    la $t1, conteudo_acervo_livro
+    li $t3, 0  # Contador de caracteres lidos
+
+verificacao_loop:
+    lb $t2, 0($t1)  # Carrega um byte
+    
+    beqz $t2, verificar_fim  # Se encontrar nulo, sai do loop
+    addi $t3, $t3, 1  # Incrementa contador de caracteres lidos
+    addi $t1, $t1, 1  # Avança para o próximo byte
+    j verificacao_loop
+
+verificar_fim:
+    beqz $t3, acervo_vazio  # Se não leu nada, exibe mensagem de acervo vazio
+    jr $ra  # Retorna para a função que chamou
+
+acervo_vazio:
+    li $v0, 4
+    la $a0, msg_acervo_vazio
+    syscall
+    j main  # Retorna ao menu principal
 
 
 
 listar_livros:
-	li $v0, 4
-    	la $a0, msg_em_breve
-    	syscall
-    	j main
+# Abrir o arquivo  
+    li $v0, 13           # syscall para abrir arquivo  
+    la $a0, endereco_acervo_livros     # nome do arquivo  
+    li $a1, 0            # modo leitura  
+    syscall  
+    
+    # Verifica se o arquivo foi aberto corretamente
+    bltz $v0, error_open_file # Se $v0 for negativo, erro ao abrir
+    
+    # Salvar o descritor de arquivo  
+    move $t0, $v0        # $t0 agora contém o descritor do arquivo  
+    
+read_loop:  
+    # Ler o arquivo  
+    li $v0, 14           # syscall para ler o arquivo  
+    move $a0, $t0        # descritor do arquivo  
+    la $a1, buffer       # buffer para armazenar dados  
+    li $a2, 256          # número de bytes a ler  
+    syscall  
+    
+    # Checar se chegou ao final do arquivo  
+    beqz $v0, close_file # se nada for lido, fecha o arquivo  
+    
+    # Salvar quantidade de bytes lidos
+    move $t1, $v0  
+    
+    # Imprimir o conteúdo lido
+    li $v0, 4            # syscall para imprimir string  
+    la $a0, buffer       # endereço do buffer  
+    syscall  
+
+    j read_loop          # loop novamente para ler mais dados  
+
+close_file:  
+    # Fechar o arquivo  
+    li $v0, 16           # syscall para fechar o arquivo  
+    move $a0, $t0        # descritor do arquivo  
+    syscall  
+
+error_open_file:
+    li $v0, 4
+    la $a0, newline
+    syscall # Exibe uma quebra de linha indicando erro
+
+listar_fim:
+    j main  # Retorna ao menu principal
     	
 remover_livro:
 	li $v0, 4
@@ -737,12 +832,67 @@ salvar_dados:
 
 ################### ARQUIVOS ACERVO ##################
 ler_arquivo_livros:
-	la $a0, endereco_acervo_livros #Carrega o endereço do arquivo no reg a0
-	la $t1, conteudo_acervo_livro
-	ler_arquivo #Abre o arquivo que está no endereco a0
-	move $s0, $a1 #Salva o endereco de memoria com os conteudos do arquivo
-	#Fechando o arquivo
-	fechar_arquivo
+    # Abre o arquivo
+    li $v0, 13  # Syscall para abrir arquivo
+    la $a0, endereco_acervo_livros  # Caminho do arquivo
+    li $a1, 0  # Modo de leitura
+    syscall
+    move $t0, $v0  # Salvar o descritor do arquivo
+
+    bltz $t0, erro_leitura  # Se $t0 < 0, erro ao abrir arquivo
+
+    # Lê o conteúdo do arquivo para a memória
+    li $v0, 14  # Syscall para ler arquivo
+    move $a0, $t0  # Descritor do arquivo
+    la $a1, conteudo_acervo_livro  # Buffer para leitura
+    li $a2, 10240  # Tamanho máximo de leitura
+    syscall
+
+    # Mensagem de depuração
+    li $v0, 4
+    la $a0, msg_debug_leitura_ok
+    syscall
+
+    # Fechar o arquivo após leitura
+    li $v0, 16
+    move $a0, $t0
+    syscall
+
+    # Verifica se o arquivo está vazio
+    la $t1, conteudo_acervo_livro
+    lb $t2, 0($t1)  # Lê o primeiro byte
+    beqz $t2, acervo_vazio  # Se for 0, exibe mensagem de acervo vazio e sai
+
+    # Se não estiver vazio, verifica se deve pular um cabeçalho
+    la $t2, conteudo_acervo_livro  # Ponteiro para início do buffer
+pular_cabecalho:
+    lb $t3, 0($t2)  # Lê um byte
+    beqz $t3, fim_leitura  # Se for fim do arquivo, sai
+    beq $t3, '\n', iniciar_leitura  # Se encontrou '\n', cabeçalho acabou
+    addi $t2, $t2, 1  # Avança um byte
+    j pular_cabecalho
+
+iniciar_leitura:
+    addi $t2, $t2, 1  # Pular '\n' e começar a ler os livros
+    la $s0, conteudo_acervo_livro
+    move $s0, $t2  # Atualiza o início dos dados (sem cabeçalho)
+
+fim_leitura:
+    # Inserir byte nulo no final do buffer
+    la $t1, conteudo_acervo_livro
+    add $t1, $t1, $v0  # $v0 contém o número de bytes lidos
+    sb $zero, 0($t1)   # Armazena byte nulo no final
+
+    fechar_arquivo
+    jr $ra
+
+
+# Caso ocorra erro ao abrir ou ler o arquivo
+erro_leitura:
+    li $v0, 4
+    la $a0, msg_error
+    syscall
+    j main
 
 
 ################## ARQUIVOS USUARIOS #################
