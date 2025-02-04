@@ -1135,9 +1135,9 @@ ajustar_data:
 	li $a1, '/'
 	li $a2, 1
 	jal split
-	move $t7, $t3
-	move $t6, $t2
-	move $t5, $t1
+	move $t8, $t3
+	move $t7, $t2
+	move $t6, $t1
 	
 	la $a1, buffer_argumento
 	jal limpar_buffer
@@ -1151,9 +1151,9 @@ ajustar_data:
 	
 	la $t0, tempo_base    # Carrega o endereço base de 'tempo'
 	
-	sw $t7, 0($t0) 
-	sw $t6, 4($t0)
-	sw $t5, 8($t0)
+	sw $t8, 0($t0) 
+	sw $t7, 4($t0)
+	sw $t6, 8($t0)
 	sw $t1, 12($t0)
 	sw $t2, 16($t0)
 	sw $t3, 20($t0)
