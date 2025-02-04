@@ -2,6 +2,7 @@
 # reg $s0 -> Endereco para o acervo de livros
 # reg $s1 -> Endereco para a lista com os usuarios
 # reg $s2 -> Endereco para a lista de emprestimos
+# reg $s3 -> Endereco para o comando inserido pelo user
 ######################################################
 
 .data
@@ -97,6 +98,10 @@
 	arg_data: .asciiz "--data"
 	arg_hora: .asciiz "--hora"
 	
+	arg_nome: .asciiz "--nome"
+	arg_matricula: .asciiz "--matricula"
+	arg_curso: .asciiz "--curso"
+	
 	texto_shell : .asciiz "xxxxxx-shell>>"
 	
 #Fecha um arquivo aberto
@@ -173,7 +178,14 @@ salvar_dado_ok:
 		addi $a3, $a3, 1  #Adiciona mais um no reg da destination para que possamos inserir o prÃ³ximo caractere
 	
 		lb $t0, 0($a2) #Faz a leitura do caracter na nova posiÃ§Ã£o
-		bne  $t0, 32, loop_strcpy #Caso o valor seja diferente do caracter nulo ('\0') ele continua a copiar o byte reiniciando o loop
+		
+		#Caso o valor seja diferente do caracter nulo ('\0') e seja diferente de espaco (' ')ele continua a copiar o byte reiniciando o loop
+		beq $t0, 32, end_loop_strcpy #Espaco
+		beq $t0, 0, end_loop_strcpy #Nulo
+		
+		j loop_strcpy
+		
+	end_loop_strcpy:
 .end_macro
 
 .macro escolher_funcao
@@ -211,7 +223,9 @@ main:
 	la $a1, 100
 	syscall 
 	
-	move $a2, $a0 #Faz um backup do enedereco do comando do usario 
+	#Faz um backup do enedereco do comando do usario para ser utilizado no isolador e nas funcoes mais tarde
+	move $a2, $a0 
+	move $s3, $a0 
 	
 	isolar_comando
 	
@@ -597,7 +611,7 @@ truncate_livros:
     fechar_arquivo
 	
 
-# ============================== USUÃ?RIOS ==============================
+# ============================== USUï¿½?RIOS ==============================
 inserir_usuarios:
     # Encontrar posiÃ§Ã£o vazia no acervo
     la $t1, conteudo_contas_usuarios  # InÃ­cio do armazenamento de usuÃ¡rios
@@ -838,11 +852,11 @@ horas_certas:
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espaço na pilha
-sw $ra, 0($sp)     # Salva o endereço de retorno
+subu $sp, $sp, 4   # Reserva espaï¿½o na pilha
+sw $ra, 0($sp)     # Salva o endereï¿½o de retorno
 
 la $t3, tempo_base
-lw $t0, 4($t3) #mês
+lw $t0, 4($t3) #mï¿½s
 lw $t1, 0($t3) #ano
 lw $t2, 8($t3) #dias
 addu $a0, $a0, $t2 #dias_restantes
@@ -883,7 +897,7 @@ beq $t0, $t2, dezembro
 j loop_data
 
 qual_fevereiro:
-	andi $t2, $t1, 3  # Verifica os dois últimos bits de $t0
+	andi $t2, $t1, 3  # Verifica os dois ï¿½ltimos bits de $t0
 	beq $t2, $zero, fevereiro_bissexto
 	j fevereiro_normal
 loop_data:
@@ -914,7 +928,7 @@ loop_data:
 		li $t0, 3
 	
 	marco:
-		#março
+		#marï¿½o
 		li $a2, 31
 		jal subtrair
 	
@@ -1006,8 +1020,8 @@ finalizar:
 	sw $t1, 0($t3)
 	sw $t0, 4($t3)
 	sw $a0, 8($t3)
-    	lw $ra, 0($sp)     # Restaura o endereço de retorno
-    	addu $sp, $sp, 4   # Libera espaço na pilha
+    	lw $ra, 0($sp)     # Restaura o endereï¿½o de retorno
+    	addu $sp, $sp, 4   # Libera espaï¿½o na pilha
     	jr $ra             # Retorna para quem chamou   
                   
 #dataHora   
@@ -1457,13 +1471,15 @@ campo_obrigatorio:
 #================================UTILIDADES===============================
 
 
+######### Documentacao Extrator ###########
+# a0 -> recebe o comando                  #
+# a1 ->  recebe o argumento buscado       #
+# a2 -> buffer do argumento               #
+###########################################
 extrator_de_argumentos:
-	subu $sp, $sp, 4   # Reserva espaè¼Ÿ na pilha
-	sw $ra, 0($sp)     # Salva o endereè¼Ÿ de retorno
+	subu $sp, $sp, 4   # Reserva espaco na pilha
+	sw $ra, 0($sp)     # Salva o endereco de retorno
 	
-	#a0 recebe o comando
-	#a1 recebe o argumento buscado
-	#a2 buffer do argumento
 	la $a2, buffer_argumento
 	jal strstr
 	beq $v0, 0, finalizado_loop_fracasso
@@ -1471,24 +1487,24 @@ extrator_de_argumentos:
 pular_argumento:
     lb $t1, 0($t0)      # Carrega caractere
     beqz $t1, finalizado_loop_fracasso # Se chegou no fim da string, erro
-    li $t4, 39      # Código ASCII da aspa simples (')
-    li $t5, 34      # Código ASCII da aspa dupla (")
+    li $t4, 39      # Codigo ASCII da aspa simples (')
+    li $t5, 34      # Codigo ASCII da aspa dupla (")
     beq $t1, $t4, finalizado_loop_sucesso # Se for ', pode ser o separador
     beq $t1, $t5, finalizado_loop_sucesso # Se for ", pode ser o separador
-    addi $t0, $t0, 1    # Avança na string
+    addi $t0, $t0, 1    # Avanca na string
     j pular_argumento   # Continua verificando
 
 finalizado_loop_sucesso:
 	move $a0, $t0
-	addi $a0, $a0, 1 # Pular o espaço e as aspas
+	addi $a0, $a0, 1 # Pular o espaco e as aspas
 	jal extrair_str_aspas
 	
 	li $v0, 4
 	la $a0, buffer_argumento
 	syscall
 	
-	lw $ra, 0($sp)     # Restaura o endereè¼Ÿ de retorno
-	addu $sp, $sp, 4   # Libera espaè¼Ÿ na pilha
+	lw $ra, 0($sp)     # Restaura o enderecco de retorno
+	addu $sp, $sp, 4   # Libera espaco na pilha
 	jr $ra             # Retorna para quem chamou
 	
 finalizado_loop_fracasso:
@@ -1497,8 +1513,8 @@ finalizado_loop_fracasso:
 	syscall
 	move $a0, $a1
 	syscall
-	lw $ra, 0($sp)     # Restaura o endereè¼Ÿ de retorno
-	addu $sp, $sp, 4   # Libera espaè¼Ÿ na pilha
+	lw $ra, 0($sp)     # Restaura o endereco de retorno
+	addu $sp, $sp, 4   # Libera espaco na pilha
 	j main
 
 
@@ -1507,15 +1523,15 @@ loop:
     lb $t3, 0($a0)  # Carrega um caractere
     beqz $t3, end   # Se for NULL, finaliza
 
-    li $t4, 39      # Código ASCII da aspa simples (')
-    li $t5, 34      # Código ASCII da aspa dupla (")
+    li $t4, 39      # Codigo ASCII da aspa simples (')
+    li $t5, 34      # Codigo ASCII da aspa dupla (")
 
     beq $t3, $t4, end # Se for uma aspa, finaliza
     beq $t3, $t5, end # Se for uma aspa dupla, finaliza
 
-    sb $t3, 0($a2)  # Salva no buffer de saída
-    addi $a0, $a0, 1 # Avança na string de entrada
-    addi $a2, $a2, 1 # Avança no buffer de saída
+    sb $t3, 0($a2)  # Salva no buffer de saida
+    addi $a0, $a0, 1 # Avanca na string de entrada
+    addi $a2, $a2, 1 # Avanca no buffer de saida
     j loop          # Continua processando
 
 end:
@@ -1523,12 +1539,12 @@ end:
     jr $ra          # Retorna
 
 strstr:
-    move $t0, $a0       # Salva início da string principal
+    move $t0, $a0       # Salva inicio da string principal
 loop_outer:
     lb $t1, 0($t0)      # Carrega um caractere da string principal
-    beqz $t1, not_found # Se chegou ao fim, não encontrou a substring
+    beqz $t1, not_found # Se chegou ao fim, nao encontrou a substring
 
-    move $t2, $t0       # Ponteiro temporário para a posição na string principal
+    move $t2, $t0       # Ponteiro temporario para a posicao na string principal
     move $t3, $a1       # Ponteiro para a substring
 
 loop_inner:
@@ -1536,19 +1552,19 @@ loop_inner:
     beqz $t4, found_str # Se chegou ao fim da substring, encontramos!
 
     lb $t5, 0($t2)      # Carrega um caractere da string principal
-    beqz $t5, not_found # Se chegou ao fim da string principal, não encontrou
-    bne $t4, $t5, next_outer # Se caracteres não coincidem, tenta próxima posição
+    beqz $t5, not_found # Se chegou ao fim da string principal, nao encontrou
+    bne $t4, $t5, next_outer # Se caracteres nao coincidem, tenta praxima posicao
 
-    addi $t2, $t2, 1    # Avança na string principal
-    addi $t3, $t3, 1    # Avança na substring
+    addi $t2, $t2, 1    # Avanca na string principal
+    addi $t3, $t3, 1    # Avanca na substring
     j loop_inner        # Continua verificando
 
 found_str:
-    move $v0, $t0       # Retorna o endereço da primeira ocorrência
+    move $v0, $t0       # Retorna o endereco da primeira ocorrcncia
     jr $ra
 
 next_outer:
-    addi $t0, $t0, 1    # Avança o ponteiro na string principal
+    addi $t0, $t0, 1    # Avanca o ponteiro na string principal
     j loop_outer        # Continua procurando
 
 not_found:
