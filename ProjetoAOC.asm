@@ -88,7 +88,7 @@
 	comando_remover_livro: .asciiz "remover_livro"
 	comando_salvar_dados: .asciiz "salvar_dados"
 	comando_ajustar_data: .asciiz "ajustar_data"
-	comando_registrar_devolução: .asciiz "registrar_devolução"
+	comando_registrar_devolucao: .asciiz "registrar_devolusao"
 	
 	texto_shell : .asciiz "xxxxxx-shell>>"
 	
@@ -170,18 +170,18 @@ salvar_dado_ok:
 .end_macro
 
 .macro escolher_funcao
-	# Verifica a opção do usuário
-    	beq $t3, 0, data_hora  # Opção 1: Ver Data e Hora
-    	beq $t3, 1, inserir_livro  # Opção 2: Cadastrar Livro
-    	beq $t3, 2, listar_livros  # Opção 3: Listar Livros
-    	beq $t3, 3, inserir_usuarios  # Opção 4: Cadastrar Usuário
-    	beq $t3, 4, registrar_emprestimo  # Opção 5: Registrar Empréstimo
-    	beq $t3, 5, gerar_relatorio  # Opção 6: Gerar Relatório
-    	beq $t3, 6, remover_livro  # Opção 7: Remover Livro
-    	#beq $t3, 7, remover_usuario  # Opção 8: Remover Usuário
-    	beq $t3, 8, salvar_dados  # Opção 9: Salvar Dados
-    	beq $t3, 9, ajustar_data  # Opção 10: Ajustar Data e Hora
-    	beq $t3, 10, registrar_devolucao  # Opção 11: Registrar Devolução
+	# Verifica a opcao do usuario
+    	beq $t3, 0, print_data_hora  # Opcao 1: Ver Data e Hora
+    	beq $t3, 1, inserir_livro  # Opcao 2: Cadastrar Livro
+    	beq $t3, 2, listar_livros  # Opcao 3: Listar Livros
+    	beq $t3, 3, inserir_usuarios  # Opcao 4: Cadastrar Usuário
+    	beq $t3, 4, registrar_emprestimo  # Opcao 5: Registrar Emprestimo
+    	beq $t3, 5, gerar_relatorio  # Opcao 6: Gerar Relatório
+    	beq $t3, 6, remover_livro  # Opcao 7: Remover Livro
+    	#beq $t3, 7, remover_usuario  # Opcao 8: Remover Usuario
+    	beq $t3, 8, salvar_dados  # Opcao 9: Salvar Dados
+    	beq $t3, 9, ajustar_data  # Opcao 10: Ajustar Data e Hora
+    	beq $t3, 10, registrar_devolucao  # Opcao 11: Registrar Devolucao
 	j main
 	
 .end_macro
@@ -218,61 +218,61 @@ main:
 	move $a0, $t2
 	la $a1, comando_cadastrar_livro
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para listar os livros
 	move $a0, $t2
 	la $a1, comando_listar_livros
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para cadastrar usuarios
 	move $a0, $t2
 	la $a1, comando_cadastrar_usuario
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para registrar emprestimo
 	move $a0, $t2
 	la $a1, comando_registrar_emprestimo
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para gerar relatorios
 	move $a0, $t2
 	la $a1, comando_gerar_relatorio
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para remover usuario
 	move $a0, $t2
 	la $a1, comando_remover_usuario
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para remover o livro
 	move $a0, $t2
 	la $a1, comando_remover_livro
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para salvar os dados
 	move $a0, $t2
 	la $a1, comando_salvar_dados
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
 	#Checa se é para ajustar a data
 	move $a0, $t2
 	la $a1, comando_ajustar_data
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
-	#Checa se é para registrar devolução
+	#Checa se é para registrar devolucao
 	move $a0, $t2
-	la $a1, comando_registrar_devolução
+	la $a1, comando_registrar_devolucao
 	jal strcmp_loop
-	addi $t3, $zero, 1
+	addi $t3, $t3, 1
 	
     	# Mensagem de opção invalida
     	li $v0, 4
@@ -299,7 +299,7 @@ verificar_null:
 
 strings_iguais:
 	li $v0, 0                # Ambas as strings são iguais (retorna 0)
-	j fim                   # Retorna ao chamador
+	escolher_funcao                   # Retorna ao chamador
 	
 str1_menor:
 	li $v0, -1
@@ -590,7 +590,7 @@ truncate_livros:
     fechar_arquivo
 	
 
-# ============================== USUÁRIOS ==============================
+# ============================== USU�?RIOS ==============================
 inserir_usuarios:
     # Encontrar posição vazia no acervo
     la $t1, conteudo_contas_usuarios  # Início do armazenamento de usuários
@@ -676,153 +676,152 @@ data_hora:
 subu $sp, $sp, 4   # Reserva espa�o na pilha
 sw $ra, 0($sp)     # Salva o endere�o de retorno
 
-li $v0, 30
-syscall
+	li $v0, 30
+	syscall
 
-la $t0, milisegundos_offset
-lw $a2, 4($t0) #parte baixa
-lw $t2, 0($t0) #parte alta
+	la $t0, milisegundos_offset
+	lw $t1, 4($t0) #parte baixa
+	lw $t2, 0($t0) #parte alta
 
-bgtu $a0, $a2, sem_underflow
-subi $a1, $a1, 1
-sem_underflow:
-sub $a0, $a0, $a2
-sub $a1, $a1, $t2
+	bgtu $a0, $t1, sem_underflow
+	subi $a1, $a1, 1
+	sem_underflow:
+	sub $a0, $a0, $t1
+	sub $a1, $a1, $t2
 
-li $a2, 1000 
-jal div64x16  
+	li $a2, 1000
+	jal div64x16  
 
-#a0:a1 = seconds since epoch
+	#a0:a1 = seconds since epoch
 
-li $a2, 43200
-jal div64x16
+	li $a2, 43200
+	jal div64x16
 
-#a0:a1 = half-days since epoch
-#hi = seconds in half-day
+	#a0:a1 = half-days since epoch
+	#hi = seconds in half-day
 
-mfhi $s0              #Seconds in the half-day
+	mfhi $t0              #Seconds in the half-day
 
-move $t3, $a0 # menos significante
-move $t4, $a1 # mais significante
+	move $t6, $a0 # menos significante
+	move $t7, $a1 # mais significante
 
-andi $a0, $t3, 1      #a0 = 1 if odd half-day number (otherwise 0)
-ror $a0, $a0, 1       #a0 < 0 if odd half-day number (otherwise 0)
-sra $a0, $a0, 31      #a0 = 0xffffffff if odd half-day number (otherwise 0)
-andi $a0, $a0, 43200  #a0 = 43200  if odd half-day number (otherwise 0)
+	andi $a0, $t6, 1      #a0 = 1 if odd half-day number (otherwise 0)
+	ror $a0, $a0, 1       #a0 < 0 if odd half-day number (otherwise 0)
+	sra $a0, $a0, 31      #a0 = 0xffffffff if odd half-day number (otherwise 0)
+	andi $a0, $a0, 43200  #a0 = 43200  if odd half-day number (otherwise 0)
 
-add $s0, $s0, $a0     #s0 = seconds in the day
+	add $t0, $t0, $a0     #t0 = seconds in the day
 
-li $t0, 3600
-div $s0, $t0         
-mflo $s0              #s0 = Hour
+	li $t1, 3600
+	div $t0, $t1         
+	mflo $t0              #t0 = Hour
 
-subi $s0, $s0, 3
+	subi $t0, $t0, 3
 
-mfhi $t1 
-li $t0, 60 
-div $t1, $t0 
-mflo $s1              #s1 = Minute
-mfhi $s2              #s2 = Second
+	mfhi $t1 
+	li $t2, 60 
+	div $t1, $t2 
+	mflo $t1              #t1 = Minute
+	mfhi $t2              #t2 = Second
 
-jal tratar_horas
+	jal tratar_horas
 
-add $t3, $t3, $t1
+	add $t6, $t6, $t3
+	
 
-la $s3, tempo
-sw $s0, 12($s3)
-sw $s1, 16($s3)
-sw $s2, 20($s3)
+	la $t4, tempo
+	sw $t0, 12($t4)
+	sw $t1, 16($t4)
+	sw $t2, 20($t4)
 
-move $a0, $t3 # menos significante
-move $a1, $t4 # mais significante
+	move $a0, $t6 # menos significante
+	move $a1, $t7 # mais significante
 
-li $a2, 2
-jal div64x16
+	li $a2, 2
+	jal div64x16
 
-move $s6, $a0
-move $s7, $a1
+	jal pegar_data
 
-jal pegar_data
-
-lw $ra, 0($sp)     # Restaura o endere�o de retorno
-addu $sp, $sp, 4   # Libera espa�o na pilha
-jr $ra             # Retorna para quem chamou
+	lw $ra, 0($sp)     # Restaura o endere�o de retorno
+	addu $sp, $sp, 4   # Libera espa�o na pilha
+	jr $ra             # Retorna para quem chamou
 
 
 div64x16:
- subu $sp, $sp, 16
+ 	subu $sp, $sp, 16
 
- sw $a0, ($sp)
- sw $a1, 4($sp)
+ 	sw $a0, ($sp)
+ 	sw $a1, 4($sp)
 
- add $t0, $sp, 8     # Pointer to digits (N)
- add $t3, $sp, 16    # Pointer to result (M)
- xor $t1, $t1, $t1   # Remainder
+ 	add $t0, $sp, 8     # Pointer to digits (N)
+ 	add $t3, $sp, 16    # Pointer to result (M)
+ 	xor $t1, $t1, $t1   # Remainder
 
 loop: 
-  subu $t3, $t3, 2
-  subu $t0, $t0, 2
+  	subu $t3, $t3, 2
+  	subu $t0, $t0, 2
 
-  sll $t1, $t1, 16   # t1 = R * 65536
-  lhu $t2, ($t0)     # t2 = N[i]
-  addu $t2, $t2, $t1 # t2 = N[i] + R * 65536
+  	sll $t1, $t1, 16   # t1 = R * 65536
+  	lhu $t2, ($t0)     # t2 = N[i]
+  	addu $t2, $t2, $t1 # t2 = N[i] + R * 65536
 
-  div $t2, $a2
+  	div $t2, $a2
 
-  mflo $t1           # t1 = (N[i] + R * 65536) / K
-  sh $t1, ($t3)      # M[i] = (N[i] + R * 65536) / K
+  	mflo $t1           # t1 = (N[i] + R * 65536) / K
+  	sh $t1, ($t3)      # M[i] = (N[i] + R * 65536) / K
 
-  mfhi $t1           # t1 =  (N[i] + R * 65536) % K
+  	mfhi $t1           # t1 =  (N[i] + R * 65536) % K
 
- bne $t0, $sp, loop
+ 	bne $t0, $sp, loop
 
- mthi $t1
+ 	mthi $t1
 
- lw $a0, 8($sp) 
- lw $a1, 12($sp)
+ 	lw $a0, 8($sp) 
+ 	lw $a1, 12($sp)
 
- addu $sp, $sp, 16
- jr $ra 
+ 	addu $sp, $sp, 16
+ 	jr $ra 
 
 
 tratar_horas:
-	# s0 = horas
-	# s1 = minutos
-	# s2 = segundos
-	li $t1, 0
+	# t0 = horas
+	# t1 = minutos
+	# t2 = segundos
+	li $t3, 0
 
 ajustar_horas_negativas:
-   	bge $s0,  $zero, somar_offset
-   	addi $s0, $s0, 24
+   bge $t0,  $zero, somar_offset
+   addi $t0, $t0, 24
+   subi $t3, $t3, 1
 
 somar_offset:
-   	la $s3, tempo_base
-	lw $t0, 20($s3)
-	add $s2, $s2, $t0
+   	la $t4, tempo_base
+	lw $t5, 20($t4)
+	add $t2, $t2, $t5
 	
-	lw $t0, 16($s3)
-	add $s1, $s1, $t0
+	lw $t5, 16($t4)
+	add $t1, $t1, $t5
 	
-	lw $t0, 12($s3)
-	add $s0, $s0, $t0
+	lw $t5, 12($t4)
+	add $t0, $t0, $t5
 	
 ajustar_segundos:
-	li $t0, 60
-	blt $s2, $t0, ajustar_minutos
-	sub $s2, $s2, $t0
-	addi $s1, $s1, 1
+	li $t5, 60
+	blt $t2, $t5, ajustar_minutos
+	sub $t2, $t2, $t5
+	addi $t1, $t1, 1
 	
 ajustar_minutos:
-	li $t0, 60
-	blt $s1, $t0, ajustar_horas
-	sub $s1, $s1, $t0
-	addi $s0, $s0, 1
+	li $t5, 60
+	blt $t1, $t5, ajustar_horas
+	sub $t1, $t1, $t5
+	addi $t0, $t0, 1
 	
 ajustar_horas:
-	li $t0, 24
-	blt $s0, $t0, horas_certas
-	sub $s0, $s0, $t0
-	li $t1, 1
+	li $t5, 24
+	blt $t0, $t5, horas_certas
+	sub $t0, $t0, $t5
+	li $t3, 1
    
 horas_certas:
 	jr $ra
@@ -832,13 +831,13 @@ horas_certas:
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espa�o na pilha
-sw $ra, 0($sp)     # Salva o endere�o de retorno
+subu $sp, $sp, 4   # Reserva espa�o na pilha
+sw $ra, 0($sp)     # Salva o endere�o de retorno
 
-la $s3, tempo_base
-lw $t0, 4($s3) #m�s
-lw $t1, 0($s3) #ano
-lw $t2, 8($s3) #dias
+la $t3, tempo_base
+lw $t0, 4($t3) #m�s
+lw $t1, 0($t3) #ano
+lw $t2, 8($t3) #dias
 addu $a0, $a0, $t2 #dias_restantes
 
 li $t2, 2
@@ -877,7 +876,7 @@ beq $t0, $t2, dezembro
 j loop_data
 
 qual_fevereiro:
-	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
+	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
 	beq $t2, $zero, fevereiro_bissexto
 	j fevereiro_normal
 loop_data:
@@ -908,7 +907,7 @@ loop_data:
 		li $t0, 3
 	
 	marco:
-		#mar�o
+		#mar�o
 		li $a2, 31
 		jal subtrair
 	
@@ -993,15 +992,15 @@ subtrair_sem_underflow:
 	sub $a0, $a0, $a2
 	jr $ra
 ajuste:
-	sub $s0, $s0, 1
+	sub $a1, $a1, 1
 	jr $ra
 finalizar:
-	la $s3, tempo
-	sw $t1, 0($s3)
-	sw $t0, 4($s3)
-	sw $a0, 8($s3)
-    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
-    	addu $sp, $sp, 4   # Libera espa�o na pilha
+	la $t3, tempo
+	sw $t1, 0($t3)
+	sw $t0, 4($t3)
+	sw $a0, 8($t3)
+    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
+    	addu $sp, $sp, 4   # Libera espa�o na pilha
     	jr $ra             # Retorna para quem chamou   
                   
 #dataHora   
@@ -1014,24 +1013,34 @@ imprimir_data_hora:
 	la $a0, msg_data
 	syscall
 	
-	lw $a0, 8($t0)  # Carrega o ano
-    	li $v0, 1
+    	li $v0, 36
+    	lw $a0, 8($t0)  # Carrega o dia
+    	bgt $a0, 9, dia_dois_digitos
+	li $a0, 0
+	syscall
+	lw $a0, 8($t0)  # Carrega o dia
+	dia_dois_digitos:
     	syscall
 	
 	li $v0, 4
 	la $a0, msg_barra
 	syscall
 	
+	li $v0, 36
 	lw $a0, 4($t0)  # Carrega o mês
-    	li $v0, 1
+	bgt $a0, 9, mes_dois_digitos
+	li $a0, 0
+	syscall
+	lw $a0, 4($t0)  # Carrega o mês
+	mes_dois_digitos:
     	syscall
 	
 	li $v0, 4
 	la $a0, msg_barra
 	syscall
 	
-	lw $a0, 0($t0)  # Carrega o dia
-    	li $v0, 1
+    	li $v0, 36
+	lw $a0, 0($t0)  # Carrega o ano
     	syscall
 	
     	li $v0, 4
@@ -1044,24 +1053,39 @@ imprimir_data_hora:
 	la $a0, msg_hora
 	syscall
 	
-	lw $a0, 12($t0)  # Carrega a hora
-    	li $v0, 1
+    	li $v0, 36
+	lw $a0, 12($t0)  # Carrega as horas
+	bgt $a0, 9, hora_dois_digitos
+	li $a0, 0
+	syscall
+	lw $a0, 12($t0)  # Carrega as horas
+	hora_dois_digitos:
     	syscall
 	
 	li $v0, 4
 	la $a0, msg_dois_pontos
 	syscall
 	
+    	li $v0, 36
 	lw $a0, 16($t0)  # Carrega o minuto
-    	li $v0, 1
+	bgt $a0, 9, minutos_dois_digitos
+	li $a0, 0
+	syscall
+	lw $a0, 16($t0)  # Carrega o minuto
+	minutos_dois_digitos:
     	syscall
 	
 	li $v0, 4
 	la $a0, msg_dois_pontos
 	syscall
 	
+    	li $v0, 36
+	lw $a0, 20($t0)  # Carrega o sgundo
+	bgt $a0, 9, segundos_dois_digitos
+	li $a0, 0
+	syscall
 	lw $a0, 20($t0)  # Carrega o segundo
-    	li $v0, 1
+	segundos_dois_digitos:
     	syscall
     	
     	li $v0, 4
