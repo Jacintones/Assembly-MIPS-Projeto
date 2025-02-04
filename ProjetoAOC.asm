@@ -8,12 +8,12 @@
 	#Enderecos dos arquivos
 	#************************** MODIFICAR DIRETORIO DAS PASTAS *********************************
 	endereco_acervo_livros:  .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
-	endereco_contas_usuarios: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\usuarios.txt"
+	endereco_contas_usuarios: .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/usuarios.txt"
 	endereco_emprestimos: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\emprestimos.txt"
 	
 	#Endereco do conteudo salvo na memoria (Definindo o tamanho MAX dos arquivos: 10Kb, aproximadamente 100 livros)
 	conteudo_acervo_livro: .space 10240
-	conteudo_contas_usuarios: .space 10240
+	conteudo_contas_usuarios: .space 1024
 	conteudo_emprestimos: .space 10240
 
 	# Buffer para entrada de dados
@@ -34,6 +34,7 @@
 	msg_matricula: .asciiz "Digite o número de matrícula: "
 	msg_curso: .asciiz "Digite o curso do usuário: "
 	msg_cadastrado: .asciiz "Cadastro realizado com sucesso!\n"
+	msg_erro_nao_encontrado: .asciiz "ISBN não encontrado"
 	msg_error_armazenamento: .asciiz "Erro: espaço cheio!\n"
 	msg_error: .asciiz "Comando inválido! Tente novamente.\n"
 	msg_opcao: .asciiz "Escolha uma opção: (1) Ver Data e Hora, (2) Cadastrar Livro, (3) Listar Livros, (4) Cadastrar Usuário, (5) Registrar Empréstimo, (6) Gerar Relatório, (7) Remover Livro, (8) Remover Usuário, (9) Salvar Dados, (10) Ajustar Data e Hora, (11) Registrar Devolução, (12) Sair: \n"
@@ -45,7 +46,7 @@
 	msg_autor_txt:  .asciiz "Autor: "
 	msg_isbn_txt:   .asciiz "ISBN: "
 	msg_qtd_txt:    .asciiz "Quantidade: "
-	msg_erro: .asciiz "Erro ao criar arquivo!\n"
+	msg_erro: .asciiz "Erro ao abrir o arquivo!\n"
 	msg_ponto_virgula: .asciiz ";"
         buffer: .space 256
 	# Mensagens de data e hora
@@ -54,24 +55,24 @@
 	msg_barra: .asciiz "/"
 	msg_dois_pontos: .asciiz ":"
 	msg_quebra_de_linha: .asciiz "\n"
-	error_msg: .asciiz "Error: Could not create or open the file.\n"
         newline: .asciiz "\n"
 	tempo: .word 0, 0, 0, 0, 0, 0 #Ano, Mês, Dia, Hora, Minuto, Segundo
 	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
 	milisegundos_offset: 0, 0
-	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
+	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
 	msg_dia: .asciiz "Dia: "
-	msg_mes: .asciiz "M�s: "
+	msg_mes: .asciiz "M�s: "
 	msg_ano: .asciiz "Ano: "
 	msg_minuto: .asciiz "Minuto: "
 	msg_segundo: .asciiz "Segundo: "
-	
-	
-	
+	msg_pedir_isbn:  .asciiz "Digite o ISBN do livro a ser removido: "
+	msg_sucesso:  .asciiz "Livro removido com sucesso!\n"
+	msg_debug: .asciiz "Conteúdo do arquivo carregado:\n"
 	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
 
 	# Mensagem temporaria de depuração
 	msg_em_breve: .asciiz "Ainda não implementado.\n"
+	msg_erro_arquivo: .asciiz "Erro ao abrir o arquivo!\n"
 	
 #Fecha um arquivo aberto
 .macro fechar_arquivo
@@ -153,11 +154,10 @@ main:
     beq $t0, 1, print_data_hora  # Opção 1: Ver Data e Hora
     beq $t0, 2, inserir_livro  # Opção 2: Cadastrar Livro
     beq $t0, 3, listar_livros  # Opção 3: Listar Livros
-    beq $t0, 4, cadastrar_usuario  # Opção 4: Cadastrar Usuário
+    beq $t0, 4, inserir_usuarios  # Opção 4: Cadastrar Usuário
     beq $t0, 5, registrar_emprestimo  # Opção 5: Registrar Empréstimo
     beq $t0, 6, gerar_relatorio  # Opção 6: Gerar Relatório
     beq $t0, 7, remover_livro  # Opção 7: Remover Livro
-    beq $t0, 8, remover_usuario  # Opção 8: Remover Usuário
     beq $t0, 9, salvar_dados  # Opção 9: Salvar Dados
     beq $t0, 10, ajustar_data  # Opção 10: Ajustar Data e Hora
     beq $t0, 11, registrar_devolucao  # Opção 11: Registrar Devolução
@@ -263,7 +263,7 @@ inserir_dados:
     j main
 
 listar_livros:
-# Abrir o arquivo  
+    # Abrir o arquivo  
     li $v0, 13           # syscall para abrir arquivo  
     la $a0, endereco_acervo_livros     # nome do arquivo  
     li $a1, 0            # modo leitura  
@@ -274,7 +274,7 @@ listar_livros:
     
     # Salvar o descritor de arquivo  
     move $t0, $v0        # $t0 agora contém o descritor do arquivo  
-    
+
 read_loop:  
     # Ler o arquivo  
     li $v0, 14           # syscall para ler o arquivo  
@@ -285,38 +285,158 @@ read_loop:
     
     # Checar se chegou ao final do arquivo  
     beqz $v0, close_file # se nada for lido, fecha o arquivo  
-    
+
     # Salvar quantidade de bytes lidos
     move $t1, $v0  
-    
-    # Imprimir o conteúdo lido
-    li $v0, 4            # syscall para imprimir string  
-    la $a0, buffer       # endereço do buffer  
-    syscall  
 
-    j read_loop          # loop novamente para ler mais dados  
+    # Imprimir o conteúdo lido byte a byte
+    la $t2, buffer   # Ponteiro para o buffer
+    li $t3, 0        # Contador de bytes
+
+print_loop:
+    lb $t4, 0($t2)  # Carrega um byte do buffer
+
+    beqz $t4, next_read  # Se for NULL, termina a impressão
+
+    li $v0, 11  # Syscall para imprimir caractere (inclui espaços)
+    move $a0, $t4
+    syscall
+
+    addi $t2, $t2, 1  # Avança para o próximo byte
+    addi $t3, $t3, 1  # Incrementa contador
+
+    blt $t3, $t1, print_loop  # Continua imprimindo até ler todos os bytes
+
+next_read:
+    j read_loop          # Loop para ler mais dados  
 
 close_file:  
     # Fechar o arquivo  
     li $v0, 16           # syscall para fechar o arquivo  
     move $a0, $t0        # descritor do arquivo  
     syscall  
+    j listar_fim
 
 error_open_file:
     li $v0, 4
-    la $a0, newline
-    syscall # Exibe uma quebra de linha indicando erro
+    la $a0, msg_erro_arquivo
+    syscall
+    j listar_fim
 
 listar_fim:
     j main  # Retorna ao menu principal
-    	
-    	
+       	
 remover_livro:
-	li $v0, 4
-    	la $a0, msg_em_breve
-    	syscall
-    	j main
+    # Abrir arquivo para leitura e carregar no acervo
+    li $v0, 13  # Syscall: Open File
+    la $a0, nome_arquivo
+    li $a1, 0   # O_RDONLY (somente leitura)
+    syscall
 
+    move $t0, $v0  # Salvar descritor do arquivo
+
+    # Ler o conteúdo do arquivo para a memória (acervo)
+    li $v0, 14  # Syscall: Read File
+    move $a0, $t0
+    la $a1, acervo  # Memória onde os livros serão carregados
+    li $a2, 1520  # Tamanho total (152 bytes * 10 livros)
+    syscall
+
+    # Fechar arquivo após leitura
+    li $v0, 16
+    move $a0, $t0
+    syscall
+
+    # Mensagem indicando o debug
+    li $v0, 4
+    la $a0, msg_debug
+    syscall
+
+    # Loop para printar todo o conteúdo do acervo carregado na memória
+    la $t1, acervo  # Ponteiro para o início do acervo
+    li $t2, 1520    # Total de bytes a serem lidos
+
+printar_acervo:
+    lb $a0, 0($t1)  # Carrega um byte do acervo
+    beqz $a0, fim_printar_acervo  # Se encontrar um NULL, para a impressão
+    li $v0, 11      # Syscall: Printar caractere
+    syscall
+
+    addi $t1, $t1, 1  # Avança para o próximo byte
+    subi $t2, $t2, 1  # Decrementa contador
+    bgtz $t2, printar_acervo  # Continua imprimindo até acabar
+
+fim_printar_acervo:
+    # Nova linha após imprimir o acervo
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
+
+    # Pedir ISBN ao usuário
+    li $v0, 4
+    la $a0, msg_pedir_isbn
+    syscall
+
+    # Ler o ISBN digitado
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 16   # ISBN tem 16 bytes
+    syscall
+
+    # Percorrer os livros armazenados no acervo
+    la $t1, acervo  # Início da lista de livros
+    li $t2, 0       # Contador de livros
+    li $t3, 10      # Máximo de livros armazenados
+
+loop_busca_livro:
+    addi $t4, $t1, 128  # O ISBN fica no offset 128 do livro
+
+    # Comparar ISBN do usuário com ISBN armazenado
+    li $t5, 16   # Tamanho do ISBN
+    move $t6, $t4  # Ponteiro para ISBN no acervo
+    la $t7, input_buffer  # Ponteiro para ISBN digitado
+
+compara_isbn:
+    lb $t8, 0($t6)  # Carrega um byte do ISBN no acervo
+    lb $t9, 0($t7)  # Carrega um byte do ISBN digitado
+    bne $t8, $t9, proximo_livro  # Se for diferente, passa para o próximo livro
+
+    addi $t6, $t6, 1  # Avança no ISBN do acervo
+    addi $t7, $t7, 1  # Avança no ISBN digitado
+    subi $t5, $t5, 1  # Decrementa o contador de bytes
+    bgtz $t5, compara_isbn  # Continua comparando enquanto não terminar
+
+    # Se chegou aqui, o ISBN foi encontrado -> Apagar o livro
+    li $t5, 152  # Tamanho do registro do livro
+    move $t6, $t1  # Ponteiro para o início do livro
+
+zera_livro:
+    sb $zero, 0($t6)  # Substitui byte por zero
+    addi $t6, $t6, 1  # Avança para o próximo byte
+    subi $t5, $t5, 1  # Decrementa contador
+    bgtz $t5, zera_livro  # Continua apagando até zerar tudo
+
+    # Mensagem de sucesso
+    li $v0, 4
+    la $a0, msg_sucesso
+    syscall
+
+    # Chamar a função para salvar o acervo atualizado
+    jal salvar_acervo_em_arquivo
+    j main  # Retorna ao menu
+
+proximo_livro:
+    addi $t1, $t1, 152  # Avança para o próximo livro
+    addi $t2, $t2, 1
+    blt $t2, $t3, loop_busca_livro  # Continua buscando se ainda há livros
+
+    # Se chegou aqui, o ISBN não foi encontrado
+    li $v0, 4
+    la $a0, msg_erro
+    syscall
+    j main  # Retorna ao menu
+    
+    
 truncate_livros:
     # Abrir arquivo para escrita
     li $v0, 13
@@ -329,56 +449,69 @@ truncate_livros:
     fechar_arquivo
 	
 
-# ============================== USU�?RIOS ==============================
-cadastrar_usuario:
-    # Calcular o próximo espaço disponível em usuários
-    la $t1, usuarios
-    li $t2, 0  # �?ndice para usuários
+# ============================== USUÁRIOS ==============================
+inserir_usuarios:
+    # Encontrar posição vazia no acervo
+    la $t1, conteudo_contas_usuarios  # Início do armazenamento de usuários
+    li $t2, 0       # Contador de usuários
+    
+loop_usuarios:
+    lb $t3, 0($t1)  # Verifica se o primeiro byte é 0 (espaço vazio)
+    beqz $t3, inserir_dados_usuarios  # Se for 0, encontrou espaço livre
 
-    loop_usuarios:
-        lb $t3, 0($t1)  # Verifica se há espaço
-        beqz $t3, inserir_usuario  # Se espaço vazio, cadastrar
-        addi $t1, $t1, 50  # Avança para o próximo espaço (tamanho fixo)
-        addi $t2, $t2, 1  # Incrementa índice
-        li $t4, 5  # Máximo de 5 usuários
-        bge $t2, $t4, espaco_cheio
-        j loop_usuarios
-
-inserir_usuario:
-    # Salvar nome
+    addi $t1, $t1, 192   # Avança para o próximo usuario
+    addi $t2, $t2, 1    # Incrementa contador de usuarios
+    
+    li $t4, 10          # Máximo de 10 usuarios
+    blt $t2, $t4, loop_usuarios  
+    j espaco_cheio      # Se chegou no limite, sai   
+    
+inserir_dados_usuarios:
+    # Ler e armazenar Nome (offset 0)
     li $v0, 4
     la $a0, msg_nome
     syscall
-    salvar_dado
-    sw $t5, 0($t1)
+    li $v0, 8            # Syscall para ler string
+    la $a0, input_buffer # Buffer de entrada
+    li $a1, 64           # Tamanho máximo
+    syscall
+    la $t6, input_buffer
+    move $t7, $t1        # Destino correto no acervo
+    jal copiar_string
 
-    # Salvar matrícula
+    # Ler e armazenar Matricula (offset 64)
     li $v0, 4
     la $a0, msg_matricula
     syscall
-    salvar_dado
-    sw $t5, 4($t1)
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 64
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 64   
+    jal copiar_string
 
-    # Salvar curso
+    # Ler e armazenar Curso (offset 128)
     li $v0, 4
     la $a0, msg_curso
     syscall
-    salvar_dado
-    sw $t5, 8($t1)
+    li $v0, 8
+    la $a0, input_buffer
+    li $a1, 64
+    syscall
+    la $t6, input_buffer
+    addi $t7, $t1, 128  # Offset do curso
+    jal copiar_string
 
     # Mensagem de sucesso
     li $v0, 4
     la $a0, msg_cadastrado
     syscall
+ 
+    jal salvar_usuario_em_arquivo  # Salva no arquivo
+    j main        
 
-    j main
 
-
-remover_usuario:
-	li $v0, 4
-    	la $a0, msg_em_breve
-    	syscall
-    	j main
 # ============================== EMPRESTIMO E DEVOLUÇÃO ==============================
 registrar_emprestimo:
 	li $v0, 4
@@ -399,8 +532,8 @@ print_data_hora:
 
 data_hora:
 
-subu $sp, $sp, 4   # Reserva espa�o na pilha
-sw $ra, 0($sp)     # Salva o endere�o de retorno
+subu $sp, $sp, 4   # Reserva espa�o na pilha
+sw $ra, 0($sp)     # Salva o endere�o de retorno
 
 li $v0, 30
 syscall
@@ -470,8 +603,8 @@ move $s7, $a1
 
 jal pegar_data
 
-lw $ra, 0($sp)     # Restaura o endere�o de retorno
-addu $sp, $sp, 4   # Libera espa�o na pilha
+lw $ra, 0($sp)     # Restaura o endere�o de retorno
+addu $sp, $sp, 4   # Libera espa�o na pilha
 jr $ra             # Retorna para quem chamou
 
 
@@ -558,11 +691,11 @@ horas_certas:
 
 pegar_data:
 
-subu $sp, $sp, 4   # Reserva espa�o na pilha
-sw $ra, 0($sp)     # Salva o endere�o de retorno
+subu $sp, $sp, 4   # Reserva espa�o na pilha
+sw $ra, 0($sp)     # Salva o endere�o de retorno
 
 la $s3, tempo_base
-lw $t0, 4($s3) #m�s
+lw $t0, 4($s3) #m�s
 lw $t1, 0($s3) #ano
 lw $t2, 8($s3) #dias
 addu $a0, $a0, $t2 #dias_restantes
@@ -603,7 +736,7 @@ beq $t0, $t2, dezembro
 j loop_data
 
 qual_fevereiro:
-	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
+	andi $t2, $t1, 3  # Verifica os dois �ltimos bits de $t0
 	beq $t2, $zero, fevereiro_bissexto
 	j fevereiro_normal
 loop_data:
@@ -634,7 +767,7 @@ loop_data:
 		li $t0, 3
 	
 	marco:
-		#mar�o
+		#mar�o
 		li $a2, 31
 		jal subtrair
 	
@@ -726,8 +859,8 @@ finalizar:
 	sw $t1, 0($s3)
 	sw $t0, 4($s3)
 	sw $a0, 8($s3)
-    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
-    	addu $sp, $sp, 4   # Libera espa�o na pilha
+    	lw $ra, 0($sp)     # Restaura o endere�o de retorno
+    	addu $sp, $sp, 4   # Libera espa�o na pilha
     	jr $ra             # Retorna para quem chamou   
                   
 #dataHora   
@@ -920,22 +1053,6 @@ ler_arquivo_emprestimos:
 	fechar_arquivo
 
 
-copiar_string:
-    li $t9, 64  # Define um limite máximo de 64 bytes (pode ser ajustado)
-    
-loop_copia:
-    beqz $t9, fim_copia  # Se exceder o limite, termina a cópia
-    lb $t8, 0($t6)       # Lê um byte da string fonte
-    sb $t8, 0($t7)       # Escreve no destino
-    beqz $t8, fim_copia  # Se for o terminador NULL, termina
-    addi $t6, $t6, 1     # Avança na string fonte
-    addi $t7, $t7, 1     # Avança na string destino
-    subi $t9, $t9, 1     # Decrementa contador de bytes restantes
-    j loop_copia
-
-fim_copia:
-    sb $zero, 0($t7)  # Garante que a string está NULL-terminated
-    jr $ra
 
 erro_arquivo:
     # Exibe mensagem de erro e encerra
@@ -948,7 +1065,7 @@ salvar_acervo_em_arquivo:
     # Abrir arquivo para escrita
     li $v0, 13
     la $a0, nome_arquivo
-    li $a1, 1  # Modo de escrita (O_WRONLY)
+    li $a1, 1  # Modo de escrita
     syscall
 
     bltz $v0, erro_arquivo  # Se falhar, sai
@@ -963,12 +1080,12 @@ loop_salvar:
     beqz $t3, fim_salvar  # Se não há mais livros, sai do loop
 
     ####### Escrever Título #######
-    move $a1, $t1   # Ponteiro para título
-    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    move $a1, $t1  # Passa o endereço do título para a função
+    jal calcular_tamanho_string  # Calcula o tamanho do título
     li $v0, 15
     move $a0, $t0
-    move $a1, $t1
-    move $a2, $v0  # Usa o tamanho real da string
+    move $a1, $t1  # Endereço do título
+    move $a2, $v0  # Tamanho real do título
     syscall
 
     # Escrever ";"
@@ -979,13 +1096,13 @@ loop_salvar:
     syscall
 
     ####### Escrever Autor #######
-    addi $t4, $t1, 64  # Ponteiro para autor
-    move $a1, $t4
-    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    addi $t4, $t1, 64  # Endereço do autor
+    move $a1, $t4  # Passa o endereço do autor para a função
+    jal calcular_tamanho_string  # Calcula o tamanho do autor
     li $v0, 15
     move $a0, $t0
-    move $a1, $t4
-    move $a2, $v0  # Usa o tamanho real da string
+    move $a1, $t4  # Endereço do autor
+    move $a2, $v0  # Tamanho real do autor
     syscall
 
     # Escrever ";"
@@ -996,7 +1113,98 @@ loop_salvar:
     syscall
 
     ####### Escrever ISBN #######
-    addi $t5, $t1, 128  # Ponteiro para ISBN
+    addi $t5, $t1, 128  # Endereço do ISBN
+    move $a1, $t5  # Passa o endereço do ISBN para a função
+    jal calcular_tamanho_string  # Calcula o tamanho do ISBN
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t5  # Endereço do ISBN
+    move $a2, $v0  # Tamanho real do ISBN
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever Quantidade #######
+    addi $t6, $t1, 144  # Endereço da quantidade
+    move $a1, $t6  # Passa o endereço da quantidade para a função
+    jal calcular_tamanho_string  # Calcula o tamanho da quantidade
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t6  # Endereço da quantidade
+    move $a2, $v0  # Tamanho real da quantidade
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    # Avançar para o próximo livro
+    addi $t1, $t1, 152  # Avança para o próximo livro
+    addi $t2, $t2, 1
+    li $t4, 10
+    blt $t2, $t4, loop_salvar  # Continua enquanto não atingir 10 livros
+
+salvar_usuario_em_arquivo:
+    # Abrir arquivo para escrita
+    li $v0, 13
+    la $a0, endereco_contas_usuarios
+    li $a1, 1  # Modo de escrita (O_WRONLY)
+    syscall
+
+    bltz $v0, erro_arquivo  # Se falhar, sai
+
+    move $t0, $v0  # Salva o descritor do arquivo
+
+    la $t1, conteudo_contas_usuarios  # Início 
+    li $t2, 0  # Contador de usuarios
+
+loop_salvar_usuario:
+    lb $t3, 0($t1)  # Verifica se há usuarios cadastrado
+    beqz $t3, fim_salvar  # Se não há mais usuarios, sai do loop
+
+    ####### Escrever Nome #######
+    move $a1, $t1
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t1  # Nome
+    move $a2, $v0  # Tamanho real da string (sem espaços extras)
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever Matricula #######
+    addi $t4, $t1, 64  # Ponteiro para matricula
+    move $a1, $t4
+    jal calcular_tamanho_string  # Retorna comprimento em $v0
+    li $v0, 15
+    move $a0, $t0
+    move $a1, $t4
+    move $a2, $v0  # Usa o tamanho real da string
+    syscall
+
+    # Escrever ";"
+    li $v0, 15
+    move $a0, $t0
+    la $a1, msg_ponto_virgula
+    li $a2, 1
+    syscall
+
+    ####### Escrever Curso #######
+    addi $t5, $t1, 128  # Ponteiro para curso
     move $a1, $t5
     jal calcular_tamanho_string  # Retorna comprimento em $v0
     li $v0, 15
@@ -1012,16 +1220,6 @@ loop_salvar:
     li $a2, 1
     syscall
 
-    ####### Escrever Quantidade #######
-    addi $t6, $t1, 144  # Ponteiro para quantidade
-    move $a1, $t6
-    jal calcular_tamanho_string  # Retorna comprimento em $v0
-    li $v0, 15
-    move $a0, $t0
-    move $a1, $t6
-    move $a2, $v0  # Usa o tamanho real da string
-    syscall
-
     # Escrever nova linha "\n" para finalizar o registro
     li $v0, 15
     move $a0, $t0
@@ -1029,33 +1227,43 @@ loop_salvar:
     li $a2, 1
     syscall
 
-    # Avançar para o próximo livro
-    addi $t1, $t1, 152  # Avança para o próximo livro
+    # Avançar para o próximo usuario
+    addi $t1, $t1, 192  # Avança para o próximo usuario
     addi $t2, $t2, 1
     li $t4, 10
-    blt $t2, $t4, loop_salvar  # Continua enquanto não atingir 10 livros
+    blt $t2, $t4, loop_salvar_usuario  # Continua enquanto não atingir 10 usuarios
 
 fim_salvar:
     # Fechar arquivo
     li $v0, 16
     move $a0, $t0
     syscall
-    jr $ra
-
+    j main
 
 calcular_tamanho_string:
-    li $v0, 0        # Inicializa contador de caracteres
-    move $t8, $a1    # Ponteiro para string
-
+    li $v0, 0  # Inicializa o contador de tamanho
 loop_tamanho:
-    lb $t9, 0($t8)   # Lê um byte da string
-    beqz $t9, fim_tamanho  # Se for NULL ('\0'), termina
-    addi $t8, $t8, 1  # Avança para o próximo caractere
-    addi $v0, $v0, 1  # Incrementa contador de tamanho
+    lb $t9, 0($a1)  # Lê um byte da string
+    beqz $t9, fim_tamanho  # Se for NULL ('\0'), terminou
+    addi $a1, $a1, 1  # Avança na string
+    addi $v0, $v0, 1  # Incrementa o tamanho
     j loop_tamanho
-
 fim_tamanho:
+    jr $ra  # Retorna o tamanho em $v0
+
+
+copiar_string:
+    lb $t8, 0($t6)  # Lê um byte da string de origem
+    beqz $t8, fim_copiar  # Se for NULL, terminou
+    beq $t8, 10, fim_copiar  # Se for nova linha, terminou
+    sb $t8, 0($t7)  # Copia o byte para o destino
+    addi $t6, $t6, 1  # Avança na string de origem
+    addi $t7, $t7, 1  # Avança na string de destino
+    j copiar_string
+fim_copiar:
+    sb $zero, 0($t7)  # Adiciona NULL no final da string de destino
     jr $ra
+
 
 # ============================== ERRO E SA�?DA ==============================
 espaco_cheio:
