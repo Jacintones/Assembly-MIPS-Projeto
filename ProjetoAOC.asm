@@ -69,11 +69,11 @@
 	
 	msg_erro_data: .asciiz "A data deve estar no formato DD/MM/AAAA"
 	msg_erro_hora: .asciiz "A hora deve estar no formato HH/MM/SS"
-	msg_erro_minuto: .asciiz "O limite de minutos é 60"
-	msg_erro_segundos: .asciiz "O limite de segundos é 60"
-	msg_erro_horas: .asciiz "O limite de horas é 23"
-	msg_erro_dias: .asciiz "Dia não existe no mês e/ou ano escolhido"
-	msg_erro_mes: .asciiz "O limite de meses é 12"
+	msg_erro_minuto: .asciiz "O limite de minutos ï¿½ 60"
+	msg_erro_segundos: .asciiz "O limite de segundos ï¿½ 60"
+	msg_erro_horas: .asciiz "O limite de horas ï¿½ 23"
+	msg_erro_dias: .asciiz "Dia nï¿½o existe no mï¿½s e/ou ano escolhido"
+	msg_erro_mes: .asciiz "O limite de meses ï¿½ 12"
 	
 	msg_dia: .asciiz "Dia: "
 	msg_mes: .asciiz "Mes: "
@@ -631,14 +631,14 @@ truncate_livros:
     fechar_arquivo
 	
 
-# ============================== USUï¿½?RIOS ==============================
+# ============================== USUARIOS ==============================
 
 #Inserir o usuario no sistema
 inserir_usuarios:
-	limpar_buffer #Prepara para o proximo argumento
+	j limpar_buffer #Prepara para o proximo argumento
 
 	#Carrega os usuarios atulizados no s1
-	ler_arquivo_usuarios
+	jal ler_arquivo_usuarios
 	#Carrega nos reg t6 e t7 com informacoes necessarias para a formatacao do dado
 	la $t6, conc_divisoria        # (';')
 	la $t7, conc_quebra_de_linha  # ('\n')
@@ -647,67 +647,67 @@ inserir_usuarios:
 	#Passagem de parametros, adicionar uma quebra de linha no final do arquivo para receber o proximo arquivo
 	move $a0, $s3
     	move $a1, $t7
-    	strcat
+    	jal strcat
 	
 	#Separa o nome do usuario
     	move $a0, $s3
     	la $a1, arg_nome
-    	extrator_de_argumentos
+    	jal extrator_de_argumentos
     	
     	beq $v0, 4, erro_nome
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona o nome
     	move $a0, $t8
     	move $a1, $a2
-    	strcat
+    	jal strcat
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona o divisor
     	move $a0, $t8
     	move $a1, $t6 
-    	strcat
+    	jal strcat
     	
-    	limpar_buffer #Prepara para o proximo argumento
+    	j limpar_buffer #Prepara para o proximo argumento
     	
     	#Separa a mtricula
     	move $a0, $s3
     	la $a1,arg_matricula
-    	extrator_de_argumentos
+    	jal extrator_de_argumentos
     	
     	beq $v0, 4, erro_matricula
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona a matricula
     	move $a0, $t8
     	move $a1, $a2
-    	strcat
+    	jal strcat
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona o divisor
     	move $a0, $t8
     	move $a1, $t6 
-    	strcat
+    	jal strcat
     
-	limpar_buffer #Prepara para o proximo argumento
+	j limpar_buffer #Prepara para o proximo argumento
     
     	#Separa o curso
     	move $a0, $s3
     	la $a1, arg_curso
-    	extrator_de_argumentos
+    	jal extrator_de_argumentos
     	
     	beq $v0, 4, erro_curso
 	
 	#Passagem de parametros para afuncao concatenadora, adiciona o curso
     	move $a0, $t8
     	move $a1, $a2
-    	strcat
+    	jal strcat
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona a quebra de linha
     	move $a0, $t8
     	move $a1, $t7 
-    	strcat
+    	jal strcat
     	
     	#Passagem de parametros para afuncao concatenadora, adiciona as informacoes do novo usuario no reg s3 (registrador que contem os dados do arquivo txt)
 	move $a0, $s3
 	move $a1, $t8
-	strcat
+	jal strcat
 	
 	j main        
 
@@ -1457,6 +1457,7 @@ ler_arquivo_livros:
 	move $s0, $a1 #Salva o endereco de memoria com os conteudos do arquivo
 	#Fechando o arquivo
 	fechar_arquivo
+	jr $ra
 
 
 ################## ARQUIVOS USUARIOS #################
@@ -1468,6 +1469,7 @@ ler_arquivo_usuarios:
 	move $s1, $a1 #Salva o endereco de memoria com os conteudos do arquivo
 	#Fechando o arquivo
 	fechar_arquivo
+	jr $ra
 
 
 ################ ARQUIVOS EMPRESTIMOS ################
