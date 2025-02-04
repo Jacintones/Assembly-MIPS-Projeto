@@ -74,6 +74,24 @@
 	msg_em_breve: .asciiz "Ainda não implementado.\n"
 	msg_erro_arquivo: .asciiz "Erro ao abrir o arquivo!\n"
 	
+	comando_usuario: .space 300 #Espaco na memoria 
+	funcao_usuario: .space 30 #Buffer para a funcao escrita pelo usuario
+	
+	#Comandos utilizados para indicar a funcao escolhida pelo o usuario
+	comando_data_hora: .asciiz "data_hora"
+	comando_cadastrar_livro: .asciiz "cadastrar_livro"
+	comando_listar_livros: .asciiz "listar_livros"
+	comando_cadastrar_usuario: .asciiz "cadastrar_usuario"
+	comando_registrar_emprestimo: .asciiz "registrar_emprestimo"
+	comando_gerar_relatorio: .asciiz "gerar_relatorio"
+	comando_remover_usuario: .asciiz "remover_usuario"
+	comando_remover_livro: .asciiz "remover_livro"
+	comando_salvar_dados: .asciiz "salvar_dados"
+	comando_ajustar_data: .asciiz "ajustar_data"
+	comando_registrar_devolução: .asciiz "registrar_devolução"
+	
+	texto_shell : .asciiz "xxxxxx-shell>>"
+	
 #Fecha um arquivo aberto
 .macro fechar_arquivo
 	addi $v0, $zero 16 #Codigo para fechar o arquivo com o descritor
@@ -133,44 +151,167 @@ salvar_dado_ok:
     syscall
 .end_macro
 
+#Macro utilizado para isolar o função do comando digitado pelo usuario
+.macro isolar_comando
+	la $a3, funcao_usuario
+	move $t2, $a3 #Salva o enderco do inicio da funcao usuario
+	lb $t0, 0($a2) #Carrega o primeiro byte da source no t1
+		
+	#Loop utilizado para percorrer a frase da source
+	loop_strcpy:
+		sb $t0, 0($a3) #Guarda no endereço de memória do destination o último caracter carregado
+	
+		#Acrecimos dos Contadores/Marcadores
+		addi $a2, $a2, 1  #Adiciona mais um no reg da source para que possamos ler o próximo caractere
+		addi $a3, $a3, 1  #Adiciona mais um no reg da destination para que possamos inserir o próximo caractere
+	
+		lb $t0, 0($a2) #Faz a leitura do caracter na nova posição
+		bne  $t0, 32, loop_strcpy #Caso o valor seja diferente do caracter nulo ('\0') ele continua a copiar o byte reiniciando o loop
+.end_macro
+
+.macro escolher_funcao
+	# Verifica a opção do usuário
+    	beq $t3, 0, data_hora  # Opção 1: Ver Data e Hora
+    	beq $t3, 1, inserir_livro  # Opção 2: Cadastrar Livro
+    	beq $t3, 2, listar_livros  # Opção 3: Listar Livros
+    	beq $t3, 3, inserir_usuarios  # Opção 4: Cadastrar Usuário
+    	beq $t3, 4, registrar_emprestimo  # Opção 5: Registrar Empréstimo
+    	beq $t3, 5, gerar_relatorio  # Opção 6: Gerar Relatório
+    	beq $t3, 6, remover_livro  # Opção 7: Remover Livro
+    	#beq $t3, 7, remover_usuario  # Opção 8: Remover Usuário
+    	beq $t3, 8, salvar_dados  # Opção 9: Salvar Dados
+    	beq $t3, 9, ajustar_data  # Opção 10: Ajustar Data e Hora
+    	beq $t3, 10, registrar_devolucao  # Opção 11: Registrar Devolução
+	j main
+	
+.end_macro
+
 .text
 
 .globl main
 
 main:
-    # Imprime o menu inicial
-    li $v0, 4
-    la $a0, msg_opcao
-    syscall
+	#Contador para espcificar a funcao
+	addi $t3, $zero, 0
+	
+	# Escreve o texto-shell
+	li $v0, 4
+	la $a0, texto_shell
+	syscall 
+	
+	li $v0, 8
+	la $a0, comando_usuario
+	la $a1, 100
+	syscall 
+	
+	move $a2, $a0 #Faz um backup do enedereco do comando do usario 
+	
+	isolar_comando
+	
+	#Checa se é para mostrar a hora
+	move $a0, $t2
+	la $a1, comando_data_hora
+	jal strcmp_loop
+	addi $t3, $t3, 1
+	
+	#Checa se é para cadastrar livros
+	move $a0, $t2
+	la $a1, comando_cadastrar_livro
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para listar os livros
+	move $a0, $t2
+	la $a1, comando_listar_livros
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para cadastrar usuarios
+	move $a0, $t2
+	la $a1, comando_cadastrar_usuario
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para registrar emprestimo
+	move $a0, $t2
+	la $a1, comando_registrar_emprestimo
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para gerar relatorios
+	move $a0, $t2
+	la $a1, comando_gerar_relatorio
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para remover usuario
+	move $a0, $t2
+	la $a1, comando_remover_usuario
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para remover o livro
+	move $a0, $t2
+	la $a1, comando_remover_livro
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para salvar os dados
+	move $a0, $t2
+	la $a1, comando_salvar_dados
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para ajustar a data
+	move $a0, $t2
+	la $a1, comando_ajustar_data
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+	#Checa se é para registrar devolução
+	move $a0, $t2
+	la $a1, comando_registrar_devolução
+	jal strcmp_loop
+	addi $t3, $zero, 1
+	
+    	# Mensagem de opção invalida
+    	li $v0, 4
+    	la $a0, msg_error
+    	syscall
+		
+	j main
+	
+# Função strcmp
+strcmp_loop:
+	lb $t0, 0($a0)          # Carrega o próximo caractere de str1 em $t0
+	lb $t1, 0($a1)          # Carrega o próximo caractere de str2 em $t1
 
-    imprimir_shell
+	beq $t0, $t1, verificar_null # Se forem iguais, verifica o próximo caractere
+	blt $t0, $t1, str1_menor     # Se for menor, retorna -1
+	j str1_maior
 
-    # Lê a opção do usuário
-    li $v0, 5
-    syscall
-    move $t0, $v0  # Guarda a opção em $t0
 
-    # Verifica a opção do usuário
-    beq $t0, 1, print_data_hora  # Opção 1: Ver Data e Hora
-    beq $t0, 2, inserir_livro  # Opção 2: Cadastrar Livro
-    beq $t0, 3, listar_livros  # Opção 3: Listar Livros
-    beq $t0, 4, inserir_usuarios  # Opção 4: Cadastrar Usuário
-    beq $t0, 5, registrar_emprestimo  # Opção 5: Registrar Empréstimo
-    beq $t0, 6, gerar_relatorio  # Opção 6: Gerar Relatório
-    beq $t0, 7, remover_livro  # Opção 7: Remover Livro
-    beq $t0, 9, salvar_dados  # Opção 9: Salvar Dados
-    beq $t0, 10, ajustar_data  # Opção 10: Ajustar Data e Hora
-    beq $t0, 11, registrar_devolucao  # Opção 11: Registrar Devolução
-    beq $t0, 12, sair  # Opção 12: Sair    
-    beq $t0, 13, truncate_livros 
-    
-    # Mensagem de opção invalida
-    li $v0, 4
-    la $a0, msg_error
-    syscall
-    
-    j main  # Volta para o menu se a opção for inválida
+verificar_null:
+	beqz $t0, strings_iguais  # Se $t0 for '\0', as strings são iguais
+	addi $a0, $a0, 1         # Incrementa o ponteiro de str1
+	addi $a1, $a1, 1         # Incrementa o ponteiro de str2
+	escolher_funcao         # Continua o loop
 
+strings_iguais:
+	li $v0, 0                # Ambas as strings são iguais (retorna 0)
+	j fim                   # Retorna ao chamador
+	
+str1_menor:
+	li $v0, -1
+	jr $ra 
+str1_maior:
+	li $v0, 1
+	jr $ra
+	
+fim: 
+	# Finaliza o programa
+    	li $v0, 10             # Syscall para sair
+    	syscall
 
 # ============================== LIVROS ==============================
 inserir_livro:
