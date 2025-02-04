@@ -63,7 +63,7 @@
 	milisegundos_offset: 0, 0
 	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, M�s, Dia, Hora, Minuto, Segundo
 	msg_dia: .asciiz "Dia: "
-	msg_mes: .asciiz "M�s: "
+	msg_mes: .asciiz "Mes: "
 	msg_ano: .asciiz "Ano: "
 	msg_minuto: .asciiz "Minuto: "
 	msg_segundo: .asciiz "Segundo: "
@@ -93,6 +93,9 @@
 	comando_salvar_dados: .asciiz "salvar_dados"
 	comando_ajustar_data: .asciiz "ajustar_data"
 	comando_registrar_devolucao: .asciiz "registrar_devolusao"
+	
+	arg_data: .asciiz "--data"
+	arg_hora: .asciiz "--hora"
 	
 	texto_shell : .asciiz "xxxxxx-shell>>"
 	
@@ -1553,15 +1556,15 @@ not_found:
     jr $ra
 	
 limpar_buffer:
-    # $s1: Aponta para o inicio do buffer a ser limpo
+    # $a1: Aponta para o inicio do buffer a ser limpo
 
     li $t0, 0            # Carrega 0 em $t0 (valor para limpar)
     
 	loop_limpar:
-    	lb $t1, 0($s1)             # Carrega o byte atual do buffer
+    	lb $t1, 0($a1)             # Carrega o byte atual do buffer
     	beq $t1, $zero, finalizar_limpeza  # Se encontrar NULL (\0), fim da string
-    	sb $t0, 0($s1)             # Substitui o byte por 0
-    	addi $s1, $s1, 1           # Avanca o ponteiro de $s0
+    	sb $t0, 0($a1)             # Substitui o byte por 0
+    	addi $a1, $a1, 1           # Avanca o ponteiro de $s0
     	j loop_limpar               # Continua limpando
 
 	finalizar_limpeza:
