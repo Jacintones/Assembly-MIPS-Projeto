@@ -63,6 +63,18 @@
 	tempo_base: .word 1970, 1, 1, 0, 0, 0 #Ano, Mï¿½s, Dia, Hora, Minuto, Segundo
 	milisegundos_offset: 0, 0
 	tempo_reset: .word 1970, 1, 1, 0, 0, 0 #Ano, Mï¿½s, Dia, Hora, Minuto, Segundo
+	meses_bissexto: .word 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+	meses_normais: .word 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+	buffer_date_time: .space 20
+	
+	msg_erro_data: .asciiz "A data deve estar no formato DD/MM/AAAA"
+	msg_erro_hora: .asciiz "A hora deve estar no formato HH/MM/SS"
+	msg_erro_minuto: .asciiz "O limite de minutos é 60"
+	msg_erro_segundos: .asciiz "O limite de segundos é 60"
+	msg_erro_horas: .asciiz "O limite de horas é 23"
+	msg_erro_dias: .asciiz "Dia não existe no mês e/ou ano escolhido"
+	msg_erro_mes: .asciiz "O limite de meses é 12"
+	
 	msg_dia: .asciiz "Dia: "
 	msg_mes: .asciiz "Mes: "
 	msg_ano: .asciiz "Ano: "
@@ -1116,72 +1128,35 @@ imprimir_data_hora:
     	j main
 	
 ajustar_data:
+	move $a0, $s3
+	la $a1, arg_data
+	jal extrator_de_argumentos
+	la $a0, buffer_argumento
+	li $a1, '/'
+	li $a2, 1
+	jal split
+	move $t7, $t3
+	move $t6, $t2
+	move $t5, $t1
+	
+	la $a1, buffer_argumento
+	jal limpar_buffer
+	move $a0, $s3
+	la $a1, arg_hora
+	jal extrator_de_argumentos
+	la $a0, buffer_argumento
+	li $a1, ':'
+	li $a2, 0
+	jal split
+	
 	la $t0, tempo_base    # Carrega o endereÃ§o base de 'tempo'
-
-	dia:
-	li $v0, 4
-	la $a0, msg_dia
-	syscall
 	
-	li $v0, 5
-	syscall
-	
-	sw $v0, 8($t0)
-	
-	mes:
-	li $v0, 4
-	la $a0, msg_mes
-	syscall
-	
-	li $v0, 5
-	syscall
-	
-	sw $v0, 4($t0)
-	
-	ano:
-	li $v0, 4
-	la $a0, msg_ano
-	syscall
-	
-	
-	li $v0, 5
-	syscall
-	
-	sw $v0, 0($t0)
-	
-	horas:
-	li $v0, 4
-	la $a0, msg_hora
-	syscall
-	
-	li $v0, 5
-	syscall
-	
-	addi $v0, $v0, 3
-	li $t1, 24
-	div $v0, $t1
-	mfhi $v0
-	sw $v0, 12($t0)
-	
-	minutos:
-	li $v0, 4
-	la $a0, msg_minuto
-	syscall
-	
-	li $v0, 5
-	syscall
-	
-	sw $v0, 16($t0)
-	
-	segundos:
-	li $v0, 4
-	la $a0, msg_segundo
-	syscall
-	
-	li $v0, 5
-	syscall
-	
-	sw $v0, 20($t0)
+	sw $t7, 0($t0) 
+	sw $t6, 4($t0)
+	sw $t5, 8($t0)
+	sw $t1, 12($t0)
+	sw $t2, 16($t0)
+	sw $t3, 20($t0)
 	
 	li $v0, 30
 	syscall
@@ -1190,6 +1165,221 @@ ajustar_data:
 	sw $a0, 4($t0)
 	sw $a1, 0($t0)
 	
+	j main
+
+split:
+	subu $sp, $sp, 4   # Reserva espaè¼Ÿ na pilha
+	sw $ra, 0($sp)     # Salva o endereè¼Ÿ de retorno
+	#a0 = string
+	#a1 = character separador
+	#a2 = 1 data, 0 hora
+	#t0 = nova string
+	#t1 = dias/horas
+	#t2 = meses/minutos
+	#t3 = ano/segundos
+	#t4 = ponteiro
+	la $t0, buffer_date_time
+	beq $a2, 1, validar_estrutura_data
+	beq $a2, 0, validar_estrutura_hora
+split_loop:
+	lb $t4, 0($a0)    # Carrega o prÃ³ximo caractere de str1 em $a0
+	beq $t4, $a1, proximo_char
+	
+split_validar_digito:
+	beqz $t4, pegar_valor
+	li $t2, '0'
+        li $t3, '9'
+        blt $t4, $t2, data_ou_hora_incorreta
+        bgt $t4, $t3, data_ou_hora_incorreta
+        sb $t4, 0($t0)       # Store the character in the buffer
+    	addi $t0, $t0, 1     # Move to the next position in the buffer
+
+proximo_char:
+	addi $a0, $a0, 1         # Incrementa o ponteiro de str1
+	j split_loop
+	
+pegar_valor:
+	li $t1, 0
+	li $t2, 0
+	li $t3, 0
+	beq $a2, 1, pegar_data_split
+	beq $a2, 0, pegar_hora_split
+	
+pegar_data_split:
+	#pegar dia/hora
+	la $a0, buffer_date_time
+	lb $t1, 0($a0)
+	subi $t1, $t1, 48
+	mul $t1, $t1, 10
+	lb $t4, 1($a0)
+	subi $t4, $t4, 48
+	add $t1, $t1, $t4
+	
+	#pegar mes/minuto
+	lb $t2, 2($a0)
+	subi $t2, $t2, 48
+	mul $t2, $t2, 10
+	lb $t4, 3($a0)
+	subi $t4, $t4, 48
+	add $t2, $t2, $t4
+	
+	#pegar ano/segundo
+	lb $t3, 4($a0)
+	subi $t3, $t3, 48
+	mul $t3, $t3, 1000
+	lb $t4, 5($a0)
+	subi $t4, $t4, 48
+	mul $t4, $t4, 100
+	add $t3, $t3, $t4
+	lb $t4, 6($a0)
+	subi $t4, $t4, 48
+	mul $t4, $t4, 10
+	add $t3, $t3, $t4
+	lb $t4, 7($a0)
+	subi $t4, $t4, 48
+	add $t3, $t3, $t4
+	
+	andi $t4, $t3, 3  # Verifica se o ano e bissexto
+	beq $t4, $zero, validar_ano_bissexto
+	
+	validar_ano_normal:
+		la $t4, meses_normais
+		sll $t0, $t2, 2
+		add $t4, $t4, $t0
+		lw $t4, 0($t4)
+		bgt $t1, $t4, dias_grandes
+		j continuar_validacao
+	validar_ano_bissexto:
+		la $t4, meses_bissexto
+		sll $t0, $t2, 2
+		add $t4, $t4, $t0
+		lw $t4, 0($t4)
+		bgt $t1, $t4, dias_grandes
+		
+	continuar_validacao:
+	bgt $t2, 12, mes_grande
+	
+	lw $ra, 0($sp)     # Restaura o endereï¿½o de retorno
+	addu $sp, $sp, 4   # Libera espaï¿½o na pilha
+	jr $ra             # Retorna para quem chamou
+	
+pegar_hora_split:
+	#pegar dia/hora
+	la $a0, buffer_date_time
+	lb $t1, 0($a0)
+	subi $t1, $t1, 48
+	mul $t1, $t1, 10
+	lb $t4, 1($a0)
+	subi $t4, $t4, 48
+	add $t1, $t1, $t4
+	
+	#pegar mes/minuto
+	lb $t2, 2($a0)
+	subi $t2, $t2, 48
+	mul $t2, $t2, 10
+	lb $t4, 3($a0)
+	subi $t4, $t4, 48
+	add $t2, $t2, $t4
+	
+	#pegar ano/segundo
+	lb $t3, 4($a0)
+	subi $t3, $t3, 48
+	mul $t3, $t3, 10
+	lb $t4, 5($a0)
+	subi $t4, $t4, 48
+	add $t3, $t3, $t4
+	
+	bgt $t1, 23, horas_grandes
+	bgt $t2, 59, minutos_grandes
+	bgt $t3, 59, segundos_grandes
+	
+	addi $t1, $t1, 3
+	li $v0, 24
+	div $t1, $v0
+	mfhi $t1
+	
+	lw $ra, 0($sp)     # Restaura o endereï¿½o de retorno
+	addu $sp, $sp, 4   # Libera espaï¿½o na pilha
+	jr $ra             # Retorna para quem chamou
+
+validar_estrutura_data:
+	move $a3, $a1
+	la $a1, buffer_argumento
+	jal calcular_tamanho_string
+	blt $v0, 10, data_ou_hora_incorreta
+	la $a1, buffer_argumento
+	lb $t1, 2($a1)
+	bne $t1, $a3, data_ou_hora_incorreta
+	lb $t1, 5($a1)
+	bne $t1, $a3, data_ou_hora_incorreta
+	move $a1, $a3
+	j split_loop
+	
+validar_estrutura_hora:
+	move $a3, $a1
+	la $a1, buffer_argumento
+	jal calcular_tamanho_string
+	blt $v0, 8, data_ou_hora_incorreta
+	la $a1, buffer_argumento
+	lb $t1, 2($a1)
+	bne $t1, $a3, data_ou_hora_incorreta
+	lb $t1, 5($a1)
+	bne $t1, $a3, data_ou_hora_incorreta
+	move $a1, $a3
+	j split_loop
+	
+data_ou_hora_incorreta:
+	beq $a2, 1, data_incorreta
+	beq $a2, 0, hora_incorreta
+data_incorreta:
+	li $v0, 4
+	la $a0, msg_erro_data
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+hora_incorreta:
+	li $v0, 4
+	la $a0, msg_erro_data
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+
+minutos_grandes:
+	li $v0, 4
+	la $a0, msg_erro_minuto
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+segundos_grandes:
+	li $v0, 4
+	la $a0, msg_erro_segundos
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+horas_grandes:
+	li $v0, 4
+	la $a0, msg_erro_horas
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+dias_grandes:
+	li $v0, 4
+	la $a0, msg_erro_dias
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
+	j main
+mes_grande:
+	li $v0, 4
+	la $a0, msg_erro_mes
+	syscall
+	la $a0, msg_quebra_de_linha
+	syscall
 	j main
 
 # ============================== DADOS ==============================
@@ -1519,7 +1709,7 @@ finalizado_loop_fracasso:
 
 
 extrair_str_aspas:
-loop:
+loop_aspas:
     lb $t3, 0($a0)  # Carrega um caractere
     beqz $t3, end   # Se for NULL, finaliza
 
@@ -1532,7 +1722,7 @@ loop:
     sb $t3, 0($a2)  # Salva no buffer de saida
     addi $a0, $a0, 1 # Avanca na string de entrada
     addi $a2, $a2, 1 # Avanca no buffer de saida
-    j loop          # Continua processando
+    j loop_aspas          # Continua processando
 
 end:
     sb $zero, 0($a2) # Adiciona NULL para finalizar a string
