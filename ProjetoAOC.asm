@@ -96,17 +96,17 @@
 	funcao_usuario: .space 30 #Buffer para a funcao escrita pelo usuario
 	
 	#Comandos utilizados para indicar a funcao escolhida pelo o usuario
-	comando_data_hora: .asciiz "data_hora"
-	comando_cadastrar_livro: .asciiz "cadastrar_livro"
-	comando_listar_livros: .asciiz "listar_livros"
-	comando_cadastrar_usuario: .asciiz "cadastrar_usuario"
-	comando_registrar_emprestimo: .asciiz "registrar_emprestimo"
-	comando_gerar_relatorio: .asciiz "gerar_relatorio"
-	comando_remover_usuario: .asciiz "remover_usuario"
-	comando_remover_livro: .asciiz "remover_livro"
-	comando_salvar_dados: .asciiz "salvar_dados"
-	comando_ajustar_data: .asciiz "ajustar_data"
-	comando_registrar_devolucao: .asciiz "registrar_devolucao"
+	comando_data_hora: .asciiz "data_hora "
+	comando_cadastrar_livro: .asciiz "cadastrar_livro "
+	comando_listar_livros: .asciiz "listar_livros "
+	comando_cadastrar_usuario: .asciiz "cadastrar_usuario "
+	comando_registrar_emprestimo: .asciiz "registrar_emprestimo "
+	comando_gerar_relatorio: .asciiz "gerar_relatorio "
+	comando_remover_usuario: .asciiz "remover_usuario "
+	comando_remover_livro: .asciiz "remover_livro "
+	comando_salvar_dados: .asciiz "salvar_dados "
+	comando_ajustar_data: .asciiz "ajustar_data "
+	comando_registrar_devolucao: .asciiz "registrar_devolucao "
 	
 	arg_data: .asciiz "--data"
 	arg_hora: .asciiz "--hora"
@@ -206,6 +206,7 @@ salvar_dado_ok:
 		j loop_strcpy
 		
 	end_loop_strcpy:
+		sb $t0, 0($a3) #Adiciona o espa�o ou o vazio no final da string
 .end_macro
 
 .macro escolher_funcao
@@ -245,7 +246,7 @@ main:
 	
 	#Faz um backup do enedereco do comando do usario para ser utilizado no isolador e nas funcoes mais tarde
 	move $a2, $a0 
-	move $s3, $a0 
+	la $s3, comando_usuario
 	
 	isolar_comando	
 	
@@ -328,14 +329,14 @@ strcmp_loop:
 	lb $t0, 0($a0)          # Carrega o próximo caractere de str1 em $t0
 	lb $t1, 0($a1)          # Carrega o próximo caractere de str2 em $t1
 
-	beq $t0, $t1, verificar_null # Se forem iguais, verifica o próximo caractere
+	beq $t0, $t1, verificar_null # Se forem iguais, verifica o proximo caractere
 	blt $t0, $t1, str1_menor     # Se for menor, retorna -1
 		
 	j str1_maior
 
 
 verificar_null:
-	beq $t0, 32, strings_iguais # Se $t0 for ' ', as strings são iguais
+	beqz $t0, strings_iguais 
 	addi $a0, $a0, 1         # Incrementa o ponteiro de str1
 	addi $a1, $a1, 1         # Incrementa o ponteiro de str2
 	j strcmp_loop      	 # Continua o loop
