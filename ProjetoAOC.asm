@@ -74,6 +74,7 @@
 	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
 
 	buffer_argumento: .space 100
+	buffer_linha: .space 300
 
 	# Mensagem temporaria de depuração
 	msg_em_breve: .asciiz "Ainda não implementado.\n"
@@ -101,6 +102,13 @@
 	arg_nome: .asciiz "--nome"
 	arg_matricula: .asciiz "--matricula"
 	arg_curso: .asciiz "--curso"
+	
+	msg_erro_nome: .asciiz "--nome e obrigatorio"
+	msg_erro_matricula: .asciiz "--matricula e obrigatorio"
+	msg_erro_curso: .asciiz "--curso e obrigatorio"
+	
+	conc_divisoria: .asciiz ";"
+	conc_quebra_de_linha: .asciiz "\n"
 	
 	texto_shell : .asciiz "xxxxxx-shell>>"
 	
@@ -302,7 +310,7 @@ main:
 		
 	j main
 	
-# Função strcmp
+# Função strcmp para o menu
 strcmp_loop:
 	lb $t0, 0($a0)          # Carrega o próximo caractere de str1 em $t0
 	lb $t1, 0($a1)          # Carrega o próximo caractere de str2 em $t1
@@ -612,67 +620,111 @@ truncate_livros:
 	
 
 # ============================== USU�?RIOS ==============================
+
+#Inserir o usuario no sistema
 inserir_usuarios:
-    # Encontrar posição vazia no acervo
-    la $t1, conteudo_contas_usuarios  # Início do armazenamento de usuários
-    li $t2, 0       # Contador de usuários
+	limpar_buffer #Prepara para o proximo argumento
+
+	#Carrega os usuarios atulizados no s1
+	ler_arquivo_usuarios
+	#Carrega nos reg t6 e t7 com informacoes necessarias para a formatacao do dado
+	la $t6, conc_divisoria        # (';')
+	la $t7, conc_quebra_de_linha  # ('\n')
+	la $t8, buffer_linha
+	
+	#Passagem de parametros, adicionar uma quebra de linha no final do arquivo para receber o proximo arquivo
+	move $a0, $s3
+    	move $a1, $t7
+    	strcat
+	
+	#Separa o nome do usuario
+    	move $a0, $s3
+    	la $a1, arg_nome
+    	extrator_de_argumentos
+    	
+    	beq $v0, 4, erro_nome
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona o nome
+    	move $a0, $t8
+    	move $a1, $a2
+    	strcat
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona o divisor
+    	move $a0, $t8
+    	move $a1, $t6 
+    	strcat
+    	
+    	limpar_buffer #Prepara para o proximo argumento
+    	
+    	#Separa a mtricula
+    	move $a0, $s3
+    	la $a1,arg_matricula
+    	extrator_de_argumentos
+    	
+    	beq $v0, 4, erro_matricula
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona a matricula
+    	move $a0, $t8
+    	move $a1, $a2
+    	strcat
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona o divisor
+    	move $a0, $t8
+    	move $a1, $t6 
+    	strcat
     
-loop_usuarios:
-    lb $t3, 0($t1)  # Verifica se o primeiro byte é 0 (espaço vazio)
-    beqz $t3, inserir_dados_usuarios  # Se for 0, encontrou espaço livre
-
-    addi $t1, $t1, 192   # Avança para o próximo usuario
-    addi $t2, $t2, 1    # Incrementa contador de usuarios
+	limpar_buffer #Prepara para o proximo argumento
     
-    li $t4, 10          # Máximo de 10 usuarios
-    blt $t2, $t4, loop_usuarios  
-    j espaco_cheio      # Se chegou no limite, sai   
-    
-inserir_dados_usuarios:
-    # Ler e armazenar Nome (offset 0)
-    li $v0, 4
-    la $a0, msg_nome
-    syscall
-    li $v0, 8            # Syscall para ler string
-    la $a0, input_buffer # Buffer de entrada
-    li $a1, 64           # Tamanho máximo
-    syscall
-    la $t6, input_buffer
-    move $t7, $t1        # Destino correto no acervo
-    jal copiar_string
+    	#Separa o curso
+    	move $a0, $s3
+    	la $a1, arg_curso
+    	extrator_de_argumentos
+    	
+    	beq $v0, 4, erro_curso
+	
+	#Passagem de parametros para afuncao concatenadora, adiciona o curso
+    	move $a0, $t8
+    	move $a1, $a2
+    	strcat
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona a quebra de linha
+    	move $a0, $t8
+    	move $a1, $t7 
+    	strcat
+    	
+    	#Passagem de parametros para afuncao concatenadora, adiciona as informacoes do novo usuario no reg s3 (registrador que contem os dados do arquivo txt)
+	move $a0, $s3
+	move $a1, $t8
+	strcat
+	
+	j main        
 
-    # Ler e armazenar Matricula (offset 64)
-    li $v0, 4
-    la $a0, msg_matricula
-    syscall
-    li $v0, 8
-    la $a0, input_buffer
-    li $a1, 64
-    syscall
-    la $t6, input_buffer
-    addi $t7, $t1, 64   
-    jal copiar_string
+#Imprime a mesnagem de erro caso o nome não tenha sido inserido
+erro_nome:
+	li $v0, 4
+	la $a0, msg_erro_nome
+	syscall
+	
+	j main
 
-    # Ler e armazenar Curso (offset 128)
-    li $v0, 4
-    la $a0, msg_curso
-    syscall
-    li $v0, 8
-    la $a0, input_buffer
-    li $a1, 64
-    syscall
-    la $t6, input_buffer
-    addi $t7, $t1, 128  # Offset do curso
-    jal copiar_string
+#Imprime a mesnagem de erro caso a matricula nao tenha sido inserida
+erro_matricula:
+	li $v0, 4
+	la $a0, msg_erro_matricula
+	syscall
+	
+	j main
 
-    # Mensagem de sucesso
-    li $v0, 4
-    la $a0, msg_cadastrado
-    syscall
- 
-    jal salvar_usuario_em_arquivo  # Salva no arquivo
-    j main        
-
+#Imprime a mesnagem de erro caso o curso não tenha sido inserido
+erro_curso:
+	li $v0, 4
+	la $a0, msg_erro_curso
+	syscall
+	
+	j main
+	
+	
+	
 
 # ============================== EMPRESTIMO E DEVOLUÇÃO ==============================
 registrar_emprestimo:
@@ -1451,7 +1503,7 @@ fim_copiar:
     jr $ra
 
 
-# ============================== ERRO E SA�?DA ==============================
+# ============================== ERRO E SAIDA ==============================
 espaco_cheio:
     li $v0, 4
     la $a0, msg_error_armazenamento
@@ -1470,12 +1522,12 @@ campo_obrigatorio:
     
 #================================UTILIDADES===============================
 
-
 ######### Documentacao Extrator ###########
 # a0 -> recebe o comando                  #
 # a1 ->  recebe o argumento buscado       #
 # a2 -> buffer do argumento               #
 ###########################################
+
 extrator_de_argumentos:
 	subu $sp, $sp, 4   # Reserva espaco na pilha
 	sw $ra, 0($sp)     # Salva o endereco de retorno
@@ -1585,3 +1637,31 @@ limpar_buffer:
 
 	finalizar_limpeza:
     	jr $ra               # Retorna
+
+################# Concatenador ##################
+
+########### Documentacao Concatenador ###########
+ # a0 -> Endereço da string destino		#
+ # a1 -> Endereço da string source		#
+ #################################################
+
+strcat:
+    # Localiza o final da string destino
+    move $t0, $a0          # Copia o endereço de destino para $t0
+find_end:
+    lb $t1, 0($t0)         # Carrega o próximo byte da string destino
+    beq $t1, $zero, copy   # Se for '\0', encontrou o final
+    addi $t0, $t0, 1       # Avança para o próximo byte
+    j find_end             # Continua buscando o final
+
+copy:
+    # Copia a string source para o final de destination
+    lb $t1, 0($a1)         # Carrega o próximo byte da source
+    sb $t1, 0($t0)         # Armazena o byte no destino
+    beq $t1, $zero, done   # Se for '\0', termina a cópia
+    addi $t0, $t0, 1       # Avança para o próximo byte no destino
+    addi $a1, $a1, 1       # Avança para o próximo byte na source
+    j copy                 # Continua copiando
+
+done:
+    jr $ra                 # Retorna ao chamador
