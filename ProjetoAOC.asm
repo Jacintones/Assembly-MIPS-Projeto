@@ -8,7 +8,7 @@
 .data
 	#Enderecos dos arquivos
 	#************************** MODIFICAR DIRETORIO DAS PASTAS *********************************
-	endereco_acervo_livros:  .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/acervo.txt"
+	endereco_acervo_livros:  .asciiz "D:/Projetos_code/Projeto-Arquitetura-Biblioteca/Assembly-MIPS-Projeto/acervo.txt"
 	endereco_contas_usuarios: .asciiz "C:/Users/thiag/Documents/assembly/Assembly-MIPS-Projeto/usuarios.txt"
 	endereco_emprestimos: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\emprestimos.txt"
 	
@@ -450,10 +450,10 @@ listar_livros:
     la $a0, endereco_acervo_livros     # nome do arquivo  
     li $a1, 0            # modo leitura  
     syscall  
-    
+
     # Verifica se o arquivo foi aberto corretamente
     bltz $v0, error_open_file # Se $v0 for negativo, erro ao abrir
-    
+
     # Salvar o descritor de arquivo  
     move $t0, $v0        # $t0 agora contém o descritor do arquivo  
 
@@ -464,49 +464,136 @@ read_loop:
     la $a1, buffer       # buffer para armazenar dados  
     li $a2, 256          # número de bytes a ler  
     syscall  
-    
+
     # Checar se chegou ao final do arquivo  
-    beqz $v0, close_file # se nada for lido, fecha o arquivo  
+    beqz $v0, close_file # Se nada for lido, fecha o arquivo  
 
     # Salvar quantidade de bytes lidos
     move $t1, $v0  
 
-    # Imprimir o conteúdo lido byte a byte
-    la $t2, buffer   # Ponteiro para o buffer
-    li $t3, 0        # Contador de bytes
+    # Inicializar ponteiro do buffer
+    la $t2, buffer   
+    li $t3, 0        # Contador de bytes lidos
 
-print_loop:
-    lb $t4, 0($t2)  # Carrega um byte do buffer
-
-    beqz $t4, next_read  # Se for NULL, termina a impressão
-
-    li $v0, 11  # Syscall para imprimir caractere (inclui espaços)
-    move $a0, $t4
+process_line:
+    # Imprimir "Título: "
+    li $v0, 4
+    la $a0, msg_titulo_txt
     syscall
 
-    addi $t2, $t2, 1  # Avança para o próximo byte
-    addi $t3, $t3, 1  # Incrementa contador
+print_title:
+    lb $t4, 0($t2)
+    beq $t4, ';', next_field
+    beqz $t4, read_loop
+    li $v0, 11
+    move $a0, $t4
+    syscall
+    addi $t2, $t2, 1
+    j print_title
 
-    blt $t3, $t1, print_loop  # Continua imprimindo até ler todos os bytes
+next_field:
+    addi $t2, $t2, 1  # Pular o `;`
 
-next_read:
-    j read_loop          # Loop para ler mais dados  
+    # Imprimir nova linha
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
 
-close_file:  
-    # Fechar o arquivo  
-    li $v0, 16           # syscall para fechar o arquivo  
-    move $a0, $t0        # descritor do arquivo  
+    # Imprimir "Autor: "
+    li $v0, 4
+    la $a0, msg_autor_txt
+    syscall
+
+print_author:
+    lb $t4, 0($t2)
+    beq $t4, ';', next_field2
+    beqz $t4, read_loop
+    li $v0, 11
+    move $a0, $t4
+    syscall
+    addi $t2, $t2, 1
+    j print_author
+
+next_field2:
+    addi $t2, $t2, 1  # Pular o `;`
+
+    # Imprimir nova linha
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
+
+    # Imprimir "ISBN: "
+    li $v0, 4
+    la $a0, msg_isbn_txt
+    syscall
+
+print_isbn:
+    lb $t4, 0($t2)
+    beq $t4, ';', next_field3
+    beqz $t4, read_loop
+    li $v0, 11
+    move $a0, $t4
+    syscall
+    addi $t2, $t2, 1
+    j print_isbn
+
+next_field3:
+    addi $t2, $t2, 1  # Pular o `;`
+
+    # Imprimir nova linha
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
+
+    # Imprimir "Quantidade: "
+    li $v0, 4
+    la $a0, msg_qtd_txt
+    syscall
+
+print_qtd:
+    lb $t4, 0($t2)
+    beq $t4, '\n', print_separator
+    beqz $t4, print_separator
+    li $v0, 11
+    move $a0, $t4
+    syscall
+    addi $t2, $t2, 1
+    j print_qtd
+
+print_separator:
+    # Imprimir nova linha
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
+
+    # Imprimir separador de linha
+    li $v0, 4
+    la $a0, msg_linha
+    syscall
+
+    # Imprimir nova linha
+    li $v0, 4
+    la $a0, msg_newline
+    syscall
+
+    addi $t2, $t2, 1  # Pular '\n'
+    j process_line
+
+close_file:
+    li $v0, 16
+    move $a0, $t0
     syscall  
     j listar_fim
 
 error_open_file:
     li $v0, 4
-    la $a0, msg_erro_arquivo
+    la $a0, msg_erro
     syscall
     j listar_fim
 
 listar_fim:
     j main  # Retorna ao menu principal
+
        	
 remover_livro:
     # Abrir arquivo para leitura e carregar no acervo
