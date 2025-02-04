@@ -30,6 +30,8 @@
 	msg_isbn: .asciiz "Digite o ISBN: "
 	msg_qtd: .asciiz "Digite a quantidade: "
 
+	msg_erro_argumento_em_falta: .asciiz "Falta o argumento "
+
 	msg_nome: .asciiz "Digite o nome do usuÃ¡rio: "
 	msg_matricula: .asciiz "Digite o nÃºmero de matrÃ­cula: "
 	msg_curso: .asciiz "Digite o curso do usuÃ¡rio: "
@@ -69,6 +71,8 @@
 	msg_sucesso:  .asciiz "Livro removido com sucesso!\n"
 	msg_debug: .asciiz "ConteÃºdo do arquivo carregado:\n"
 	filename: .asciiz "C:\Users\thiag\Documents\assembly\Assembly-MIPS-Projeto\acervo.txt"
+
+	buffer_argumento: .space 100
 
 	# Mensagem temporaria de depuraÃ§Ã£o
 	msg_em_breve: .asciiz "Ainda nÃ£o implementado.\n"
@@ -1446,3 +1450,119 @@ campo_obrigatorio:
     la $a0, msg_campo_obrigatorio
     syscall
     j main
+    
+#================================UTILIDADES===============================
+
+
+extrator_de_argumentos:
+	subu $sp, $sp, 4   # Reserva espaè¼Ÿ na pilha
+	sw $ra, 0($sp)     # Salva o endereè¼Ÿ de retorno
+	
+	#a0 recebe o comando
+	#a1 recebe o argumento buscado
+	#a2 buffer do argumento
+	la $a2, buffer_argumento
+	jal strstr
+	beq $v0, 0, finalizado_loop_fracasso
+
+pular_argumento:
+    lb $t1, 0($t0)      # Carrega caractere
+    beqz $t1, finalizado_loop_fracasso # Se chegou no fim da string, erro
+    li $t4, 39      # Código ASCII da aspa simples (')
+    li $t5, 34      # Código ASCII da aspa dupla (")
+    beq $t1, $t4, finalizado_loop_sucesso # Se for ', pode ser o separador
+    beq $t1, $t5, finalizado_loop_sucesso # Se for ", pode ser o separador
+    addi $t0, $t0, 1    # Avança na string
+    j pular_argumento   # Continua verificando
+
+finalizado_loop_sucesso:
+	move $a0, $t0
+	addi $a0, $a0, 1 # Pular o espaço e as aspas
+	jal extrair_str_aspas
+	
+	li $v0, 4
+	la $a0, buffer_argumento
+	syscall
+	
+	lw $ra, 0($sp)     # Restaura o endereè¼Ÿ de retorno
+	addu $sp, $sp, 4   # Libera espaè¼Ÿ na pilha
+	jr $ra             # Retorna para quem chamou
+	
+finalizado_loop_fracasso:
+	li $v0, 4
+	la $a0, msg_erro_argumento_em_falta
+	syscall
+	move $a0, $a1
+	syscall
+	lw $ra, 0($sp)     # Restaura o endereè¼Ÿ de retorno
+	addu $sp, $sp, 4   # Libera espaè¼Ÿ na pilha
+	j main
+
+
+extrair_str_aspas:
+loop:
+    lb $t3, 0($a0)  # Carrega um caractere
+    beqz $t3, end   # Se for NULL, finaliza
+
+    li $t4, 39      # Código ASCII da aspa simples (')
+    li $t5, 34      # Código ASCII da aspa dupla (")
+
+    beq $t3, $t4, end # Se for uma aspa, finaliza
+    beq $t3, $t5, end # Se for uma aspa dupla, finaliza
+
+    sb $t3, 0($a2)  # Salva no buffer de saída
+    addi $a0, $a0, 1 # Avança na string de entrada
+    addi $a2, $a2, 1 # Avança no buffer de saída
+    j loop          # Continua processando
+
+end:
+    sb $zero, 0($a2) # Adiciona NULL para finalizar a string
+    jr $ra          # Retorna
+
+strstr:
+    move $t0, $a0       # Salva início da string principal
+loop_outer:
+    lb $t1, 0($t0)      # Carrega um caractere da string principal
+    beqz $t1, not_found # Se chegou ao fim, não encontrou a substring
+
+    move $t2, $t0       # Ponteiro temporário para a posição na string principal
+    move $t3, $a1       # Ponteiro para a substring
+
+loop_inner:
+    lb $t4, 0($t3)      # Carrega um caractere da substring
+    beqz $t4, found_str # Se chegou ao fim da substring, encontramos!
+
+    lb $t5, 0($t2)      # Carrega um caractere da string principal
+    beqz $t5, not_found # Se chegou ao fim da string principal, não encontrou
+    bne $t4, $t5, next_outer # Se caracteres não coincidem, tenta próxima posição
+
+    addi $t2, $t2, 1    # Avança na string principal
+    addi $t3, $t3, 1    # Avança na substring
+    j loop_inner        # Continua verificando
+
+found_str:
+    move $v0, $t0       # Retorna o endereço da primeira ocorrência
+    jr $ra
+
+next_outer:
+    addi $t0, $t0, 1    # Avança o ponteiro na string principal
+    j loop_outer        # Continua procurando
+
+not_found:
+    li $v0, 0           # Retorna NULL
+    jr $ra
+	
+limpar_buffer:
+    # $s1: Aponta para o inicio do buffer a ser limpo
+
+    li $t0, 0            # Carrega 0 em $t0 (valor para limpar)
+    
+	loop_limpar:
+    	lb $t1, 0($s1)             # Carrega o byte atual do buffer
+    	beq $t1, $zero, finalizar_limpeza  # Se encontrar NULL (\0), fim da string
+    	sb $t0, 0($s1)             # Substitui o byte por 0
+    	addi $s1, $s1, 1           # Avanca o ponteiro de $s0
+    	j loop_limpar               # Continua limpando
+
+	finalizar_limpeza:
+    	jr $ra               # Retorna
